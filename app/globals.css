@@ -36,6 +36,17 @@ select,
 textarea {
   font: inherit;
 }
+[dir="rtl"] select {
+  color-scheme: light;
+  direction: rtl;
+  text-align: right;
+}
+[dir="rtl"] option {
+  direction: rtl;
+  text-align: right;
+  color: #19394f;
+  background-color: #fff;
+}
 button,
 a,
 input,
@@ -3163,6 +3174,7 @@ html[lang="en"] .admin-root { font-family: Manrope, Arial, sans-serif; }
 .cms-move button { width: 30px; height: 29px; border: 1px solid #dbe6eb; border-radius: 7px; color: #456779; background: #fff; font-size: 16px; line-height: 1; }
 .cms-move button:hover { color: #155d8d; background: #eff8fc; }
 .cms-filterbar { display: flex; gap: 10px; padding: 15px 18px; border-bottom: 1px solid #edf1f4; }
+[dir="rtl"] .cms-filterbar > select { width: 220px; max-width: 100%; flex: 0 1 220px; }
 .cms-search { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
 .cms-search svg { position: absolute; inset-inline-start: 11px; color: #8a9ba6; }
 .cms-search input { padding-inline-start: 35px!important; }
@@ -3280,6 +3292,7 @@ html[lang="en"] .admin-root { font-family: Manrope, Arial, sans-serif; }
   .cms-copy-item .cms-localized-grid { grid-template-columns: 1fr; }
   .cms-copy-item .cms-localized-grid .cms-field { grid-template-columns: 1fr; }
   .cms-filterbar { flex-direction: column; padding: 12px; }
+  [dir="rtl"] .cms-filterbar > select { width: 100%; flex: 0 0 auto; }
   .cms-image-box { flex-wrap: wrap; }
   .cms-image-box select { flex-basis: 100%; order: 3; }
   .cms-gallery-add { align-items: stretch; flex-direction: column; }
