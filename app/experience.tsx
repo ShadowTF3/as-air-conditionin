@@ -21,7 +21,7 @@ import {
   Plus,
 } from "lucide-react";
 import { money } from "./catalog-data";
-import { localize, productBrand, productTitle, type ManagedProduct } from "./site-content-data";
+import { localize, productBrand, productTitle, type ManagedOffer, type ManagedProduct } from "./site-content-data";
 import { useSiteContent } from "./site-content-context";
 import type { Translate } from "./locale";
 type Props = { t: Translate };
@@ -616,20 +616,54 @@ export function PageIntro({
     </section>
   );
 }
+function isOfferActive(offer: ManagedOffer, now: number) {
+  const starts = offer.startsAt ? Date.parse(offer.startsAt) : Number.NEGATIVE_INFINITY;
+  const ends = offer.endsAt ? Date.parse(offer.endsAt) + 86_399_999 : Number.POSITIVE_INFINITY;
+  return offer.visible && starts <= now && now <= ends;
+}
+
 export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
   const { content, lang } = useSiteContent();
   const products = content.products;
   const settings = content.settings;
+  const [now, setNow] = useState(0);
+  const [requestedOfferId, setRequestedOfferId] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setNow(Date.now());
+      setRequestedOfferId(new URLSearchParams(window.location.search).get("offer"));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [slug]);
   const p = products.find((p) => p.id === slug && p.visible);
   const [tab, setTab] = useState("specs");
   const [scene, setScene] = useState(false);
   const [activeImageSelection, setActiveImageSelection] = useState<{ productId: string; image: string } | null>(null);
   if (!p) return <div className="wrap empty-state"><h1>{t("הדגם לא זמין", "الموديل غير متاح", "This model is unavailable")}</h1><Link className="button" href="/products">{t("לכל המזגנים", "جميع المكيفات", "Explore all models")}</Link></div>;
+  const activeOffers = content.offers
+    .filter((offer) => offer.productId === p.id && isOfferActive(offer, now))
+    .sort((a, b) => a.order - b.order);
+  const activeOffer = requestedOfferId
+    ? activeOffers.find((offer) => offer.id === requestedOfferId)
+    : activeOffers[0];
+  const displayedPrice = activeOffer?.price ?? p.price;
+  const previousPrice = activeOffer?.oldPrice ?? p.previousPrice;
   const productImages = Array.from(new Set([p.image, ...p.gallery]));
   const activeImage = activeImageSelection?.productId === p.id ? activeImageSelection.image : p.image;
   const displayedImage = productImages.includes(activeImage) ? activeImage : p.image;
   const name = productTitle(p, lang);
   const brand = productBrand(p, content.brands, lang);
+  const quoteMessage = activeOffer
+    ? t(
+        `שלום, אשמח לקבל הצעת מחיר עבור ${brand} ${name}. ראיתי באתר את המבצע "${localize(activeOffer.title, lang)}" במחיר ${money(displayedPrice)}. אנא אשרו מחיר וזמינות.`,
+        `مرحبًا، أود الاستفسار عن عرض «${localize(activeOffer.title, lang)}» على ${brand} ${name} بسعر ${money(displayedPrice)}. يرجى تأكيد السعر والتوفر.`,
+        `Hello, I’d like a quote for ${brand} ${name}. I saw the “${localize(activeOffer.title, lang)}” offer at ${money(displayedPrice)}. Please confirm the price and availability.`,
+      )
+    : t(
+        `שלום, אשמח להצעת מחיר עבור ${brand} ${name}`,
+        `مرحبًا، أود الحصول على عرض سعر للمكيف ${brand} ${name}`,
+        `Hello, I’d like a quote for ${brand} ${name}`,
+      );
   return (
     <>
       <section className="wrap product-detail">
@@ -725,9 +759,10 @@ export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
                 <small>{t("טכנולוגיה", "التقنية", "Technology")}</small>
               </div>
             </div>
+            {activeOffer && <div className="detail-offer-note" role="status"><span>{t("מבצע פעיל", "عرض سارٍ", "Active offer")}</span><strong>{localize(activeOffer.title, lang)}</strong></div>}
             <div className="detail-price">
-          <strong dir="ltr">{money(p.price)}</strong>
-          {p.previousPrice !== undefined && <s dir="ltr">{money(p.previousPrice)}</s>}
+          <strong dir="ltr">{money(displayedPrice)}</strong>
+          {previousPrice !== undefined && <s dir="ltr">{money(previousPrice)}</s>}
               <span>
                 {content.settings.pricesAreIndicative
                   ? t(
@@ -735,7 +770,9 @@ export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
                       "سعر توضيحي فقط",
                       "Indicative price only",
                     )
-                  : t("מחיר", "السعر", "Price")}
+                  : activeOffer
+                    ? t("מחיר מבצע", "سعر العرض", "Offer price")
+                    : t("מחיר", "السعر", "Price")}
               </span>
             </div>
             <div className="availability">
@@ -751,18 +788,14 @@ export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
             <div className="detail-actions">
               <a
                 className="button"
-                href={`https://wa.me/${settings.whatsappE164.replace(/\D/g, "")}?text=${encodeURIComponent(
-                  t(
-                    `שלום, אשמח להצעת מחיר עבור ${brand} ${name}`,
-                    `مرحبًا، أريد عرض سعر للمكيف ${brand} ${name}`,
-                    `Hello, I’d like a quote for ${brand} ${name}`,
-                  ),
-                )}`}
+                href={`https://wa.me/${settings.whatsappE164.replace(/\D/g, "")}?text=${encodeURIComponent(quoteMessage)}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <MessageCircle size={18} />
-                {t("בקשת הצעת מחיר", "اطلب عرض سعر", "Request a quote")}
+                {activeOffer
+                  ? t("בקשת הצעת מחיר למבצע", "اطلب سعر العرض", "Ask about this offer")
+                  : t("בקשת הצעת מחיר", "اطلب عرض سعر", "Request a quote")}
               </a>
               <Link
                 className="button secondary"
@@ -987,18 +1020,14 @@ export function HomeOffers() {
     return () => window.clearTimeout(timer);
   }, []);
   const offers = content.offers
-    .filter((offer) => {
-      const starts = offer.startsAt ? Date.parse(offer.startsAt) : Number.NEGATIVE_INFINITY;
-      const ends = offer.endsAt ? Date.parse(offer.endsAt) + 86_399_999 : Number.POSITIVE_INFINITY;
-      return offer.visible && starts <= now && now <= ends;
-    })
+    .filter((offer) => isOfferActive(offer, now))
     .sort((a, b) => a.order - b.order);
   if (!offers.length) return null;
   return (
     <section className="section wrap offers-section">
       {offers.map((offer) => {
         const product = content.products.find((item) => item.id === offer.productId);
-        const href = product ? `/products/${product.id}` : offer.href;
+        const href = product ? `/products/${product.id}?offer=${encodeURIComponent(offer.id)}` : offer.href;
         const currentPrice = offer.price ?? product?.price;
         const oldPrice = offer.oldPrice ?? product?.previousPrice;
         return (

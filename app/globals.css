@@ -1620,6 +1620,28 @@ footer {
   font-size: 13px;
   color: var(--muted);
 }
+.detail-offer-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: 14px 8px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--orange) 24%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--orange) 7%, white);
+}
+.detail-offer-note span {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+}
+.detail-offer-note strong {
+  color: var(--navy);
+  font-size: 13px;
+}
 .availability {
   display: flex;
   align-items: center;

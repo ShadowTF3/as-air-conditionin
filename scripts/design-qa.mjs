@@ -179,6 +179,50 @@ await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 await page.goto(siteUrl("/faq"));
 await page.locator(".faq-list summary").first().click();
 await expect(page.locator("details[open]")).toHaveCount(1);
+
+const offerTestContent = await (await page.request.get(siteUrl("/api/content"))).json();
+const linkedProduct = offerTestContent.products.find((item) => item.visible);
+expect(linkedProduct, "Offer QA requires a visible catalog product.").toBeTruthy();
+offerTestContent.offers = [
+  {
+    id: "qa-special-offer",
+    title: { he: "מבצע בדיקה", ar: "عرض تجريبي", en: "QA special offer" },
+    description: { he: "הצעה לבדיקת האתר", ar: "عرض لاختبار الموقع", en: "QA-only offer" },
+    image: "/images/tadiran.webp",
+    buttonLabel: { he: "לפרטים", ar: "للتفاصيل", en: "View offer" },
+    href: "/contact",
+    productId: linkedProduct.id,
+    price: 1234,
+    oldPrice: 2345,
+    startsAt: "",
+    endsAt: "",
+    order: 1,
+    visible: true,
+  },
+];
+await page.route("**/api/content", (route) => route.fulfill({
+  status: 200,
+  contentType: "application/json",
+  body: JSON.stringify(offerTestContent),
+}));
+for (const [lang, offerTitle] of [["he", "מבצע בדיקה"], ["ar", "عرض تجريبي"], ["en", "QA special offer"]]) {
+  await page.evaluate((value) => localStorage.setItem("as-language", value), lang);
+  await page.goto(siteUrl("/"));
+  await expect(page.locator(".offer-card")).toHaveCount(1);
+  await expect(page.locator(".offer-card .offer-price strong")).toHaveText("₪1,234");
+  await expect(page.locator(".offer-card .button")).toHaveAttribute("href", `/products/${linkedProduct.id}?offer=qa-special-offer`);
+  await page.locator(".offer-card .button").click();
+  await expect(page).toHaveURL(siteUrl(`/products/${linkedProduct.id}?offer=qa-special-offer`));
+  await expect(page.locator(".detail-offer-note")).toContainText(offerTitle);
+  await expect(page.locator(".detail-price strong")).toHaveText("₪1,234");
+  await expect(page.locator(".detail-price s")).toHaveText("₪2,345");
+  await expect(page.locator(".detail-actions .button").first()).toContainText(lang === "he" ? "למבצע" : lang === "ar" ? "العرض" : "this offer");
+}
+await page.setViewportSize({ width: 390, height: 844 });
+const offerMobileWidth = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
+expect(offerMobileWidth.document).toBeLessThanOrEqual(offerMobileWidth.viewport + 2);
+await page.unroute("**/api/content");
+
 const failure = results.filter(
   (r) => r.status !== 200 || r.scroll > r.width + 2 || r.brokenImages.length,
 );
@@ -205,6 +249,7 @@ console.log(
       errors,
       failures: failure,
       interactions: "passed",
+      offerFlow: "linked-offer navigation, sale pricing and old pricing in Hebrew, Arabic and English; mobile width",
     },
     null,
     2,
