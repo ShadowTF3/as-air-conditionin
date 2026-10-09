@@ -246,15 +246,10 @@ try {
   const invalidCategorySave = page.waitForResponse((response) => response.url().includes("/api/admin/content") && response.request().method() === "PUT");
   await page.locator(".cms-sticky-save button").click();
   const invalidCategoryResponse = await invalidCategorySave;
-  assert.equal(invalidCategoryResponse.status(), 422, "Duplicate category IDs should be rejected.");
-  const invalidCategoryBody = await invalidCategoryResponse.json();
-  const duplicateCategoryIndex = afterAdds.categories.findIndex((item) => item.id === addedCategories[1].id);
-  assert.ok(invalidCategoryBody.issues.some((issue) => issue.path.join(".") === `categories.${duplicateCategoryIndex}.id`), "The duplicate category should be identified by its array position.");
-  assert.match(await page.locator(".admin-notice.error").innerText(), /קטגוריה/, "Hebrew validation should identify the invalid category ID.");
-  const repairCategoryCard = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${addedCategories[0].id}"]`) }).nth(1);
-  await repairCategoryCard.locator(".cms-entity-body .cms-field input").first().fill(`category-cms-qa-${Date.now()}`);
-  afterAdds = await saveCmsChanges(page, "Repairing a duplicate category ID");
-  assert.equal(new Set(afterAdds.categories.map((item) => item.id)).size, afterAdds.categories.length, "Category IDs should be unique after repair.");
+  assert.equal(invalidCategoryResponse.status(), 200, "The CMS should repair duplicate category IDs while saving.");
+  afterAdds = await getSavedContent();
+  assert.equal(new Set(afterAdds.categories.map((item) => item.id)).size, afterAdds.categories.length, "Category IDs should be unique after automatic repair.");
+  assert.ok(afterAdds.products.every((product) => afterAdds.categories.some((item) => item.id === product.categoryId)), "Repairing category IDs should preserve product links.");
 
   await page.locator(".cms-subtabs button").nth(2).click();
   beforeAdds = await getSavedContent();
@@ -271,16 +266,10 @@ try {
   const invalidBrandSave = page.waitForResponse((response) => response.url().includes("/api/admin/content") && response.request().method() === "PUT");
   await page.locator(".cms-sticky-save button").click();
   const invalidBrandResponse = await invalidBrandSave;
-  assert.equal(invalidBrandResponse.status(), 422, "Duplicate brand IDs should be rejected clearly.");
-  const invalidBrandBody = await invalidBrandResponse.json();
-  const duplicateIndex = afterAdds.brands.findIndex((item) => item.id === addedBrands[1].id);
-  assert.ok(invalidBrandBody.issues.some((issue) => issue.path.join(".") === `brands.${duplicateIndex}.id`), "The duplicate brand should be identified by its array position.");
-  assert.match(await page.locator(".admin-notice.error").innerText(), /מזהה המותג/, "Hebrew validation should name the brand ID in plain language.");
-  assert.equal((await getSavedContent()).brands[duplicateIndex].id, addedBrands[1].id, "Rejected duplicate brand IDs must not be persisted.");
-  const repairBrandCard = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${addedBrands[0].id}"]`) }).nth(1);
-  await repairBrandCard.locator(".cms-entity-body .cms-field input").first().fill(`brand-cms-qa-${Date.now()}`);
-  afterAdds = await saveCmsChanges(page, "Repairing a duplicate brand ID");
-  assert.equal(new Set(afterAdds.brands.map((item) => item.id)).size, afterAdds.brands.length, "Brand IDs should be unique after repair.");
+  assert.equal(invalidBrandResponse.status(), 200, "The CMS should repair duplicate brand IDs while saving.");
+  afterAdds = await getSavedContent();
+  assert.equal(new Set(afterAdds.brands.map((item) => item.id)).size, afterAdds.brands.length, "Brand IDs should be unique after automatic repair.");
+  assert.ok(afterAdds.products.every((product) => afterAdds.brands.some((item) => item.id === product.brandId)), "Repairing brand IDs should preserve product links.");
 
   await page.locator(".cms-tabs button").nth(3).click();
   beforeAdds = await getSavedContent();

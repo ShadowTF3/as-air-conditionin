@@ -45,7 +45,7 @@ const labels: Record<Language, Record<string, string>> = {
     areaHe: "אזור שירות — עברית", areaAr: "אזור שירות — ערבית", areaEn: "אזור שירות — אנגלית",
     logo: "לוגו", hero: "תמונת פתיחה", pricesDemo: "הצגת המחירים כמחירים להמחשה", saveSettings: "שמירת פרטי העסק",
     saved: "השינויים נשמרו באתר.", saving: "שומר…", failed: "לא ניתן לשמור. בדקו את החיבור ואת פרטי הטופס.",
-    validationFields: "יש להשלים או לתקן את השדות הבאים:",
+    validationFields: "יש להשלים או לתקן את השדות הבאים:", brandRequired: "יש להזין מותג לפני שמירת הדגם.", catalogIdsRepaired: "מזהי מותג או קטגוריה לא תקינים תוקנו וקישורי המודלים נשמרו.",
     uploadFailed: "העלאת התמונה נכשלה.", noProducts: "אין דגמים להצגה.", minimumProduct: "יש להשאיר לפחות דגם אחד בקטלוג.", unavailable: "לא זמין", edit: "עריכה",
     phoneHint: "לדוגמה: +972529504011", imageHint: "JPEG, PNG, WebP או AVIF עד 8MB.", confirmDelete: "להסיר את הדגם מהקטלוג?",
     back: "חזרה לאתר", updated: "שינויים בתוכן נשמרים ללא בנייה או העלאה מחדש של האתר.", sessionExpired: "פג תוקף הכניסה. התחברו שוב.",
@@ -66,7 +66,7 @@ const labels: Record<Language, Record<string, string>> = {
     areaHe: "منطقة الخدمة — العبرية", areaAr: "منطقة الخدمة — العربية", areaEn: "منطقة الخدمة — الإنجليزية",
     logo: "الشعار", hero: "صورة الواجهة الرئيسية", pricesDemo: "عرض الأسعار على أنها توضيحية", saveSettings: "حفظ بيانات الشركة",
     saved: "حُفظت التغييرات على الموقع.", saving: "جارٍ الحفظ…", failed: "تعذر الحفظ. تحقق من الاتصال والحقول.",
-    validationFields: "يرجى إكمال الحقول التالية أو تصحيحها:",
+    validationFields: "يرجى إكمال الحقول التالية أو تصحيحها:", brandRequired: "أدخل العلامة التجارية قبل حفظ الموديل.", catalogIdsRepaired: "صُححت معرّفات العلامات أو التصنيفات غير الصالحة مع الحفاظ على ارتباط الموديلات بها.",
     uploadFailed: "تعذر رفع الصورة.", noProducts: "لا توجد موديلات للعرض.", minimumProduct: "يجب إبقاء موديل واحد على الأقل في الكتالوج.", unavailable: "غير متوفر", edit: "تعديل",
     phoneHint: "مثال: +972529504011", imageHint: "JPEG أو PNG أو WebP أو AVIF حتى 8 ميغابايت.", confirmDelete: "حذف الموديل من الكتالوج؟",
     back: "العودة إلى الموقع", updated: "تُحفظ تعديلات المحتوى دون إعادة بناء الموقع أو رفعه.", sessionExpired: "انتهت الجلسة. سجّل الدخول مجددًا.",
@@ -87,7 +87,7 @@ const labels: Record<Language, Record<string, string>> = {
     areaHe: "Service area — Hebrew", areaAr: "Service area — Arabic", areaEn: "Service area — English",
     logo: "Logo", hero: "Homepage hero image", pricesDemo: "Mark catalog prices as indicative", saveSettings: "Save business details",
     saved: "Changes are saved on the site.", saving: "Saving…", failed: "Could not save. Check your connection and the form fields.",
-    validationFields: "Please complete or correct these fields:",
+    validationFields: "Please complete or correct these fields:", brandRequired: "Enter a brand before saving this model.", catalogIdsRepaired: "Invalid brand or category IDs were repaired and their product links were preserved.",
     uploadFailed: "Image upload failed.", noProducts: "No models to display.", minimumProduct: "Keep at least one model in the catalog.", unavailable: "Unavailable", edit: "Edit",
     phoneHint: "Example: +972529504011", imageHint: "JPEG, PNG, WebP or AVIF up to 8 MB.", confirmDelete: "Remove this model from the catalog?",
     back: "Back to site", updated: "Content updates are saved without rebuilding or re-uploading the site.", sessionExpired: "Your session expired. Sign in again.",
@@ -121,6 +121,53 @@ function emptyProduct(): ManagedProduct {
 
 function e164(value: string) {
   return `+${value.replace(/\D/g, "")}`;
+}
+
+function catalogSlug(value: string) {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70);
+}
+
+function normalizeCatalogIds(value: SiteContent) {
+  let repaired = 0;
+  const normalizeCollection = <T extends { id: string; name: { he: string; ar: string; en: string } }>(items: T[], prefix: string) => {
+    const used = new Set<string>();
+    const originalToValid = new Map<string, string>();
+    const normalized = items.map((item, index) => {
+      const originalId = String(item.id ?? "");
+      const nameId = catalogSlug(item.name.en || item.name.he || item.name.ar);
+      let base = catalogSlug(originalId) || nameId || `${prefix}-${index + 1}`;
+      if (base.length < 2) base = nameId.length >= 2 ? nameId : `${prefix}-${index + 1}`;
+      let id = base;
+      let suffix = 2;
+      while (used.has(id)) {
+        const ending = `-${suffix++}`;
+        id = `${base.slice(0, 70 - ending.length)}${ending}`;
+      }
+      used.add(id);
+      if (originalId !== id) repaired += 1;
+      if (!originalToValid.has(originalId)) originalToValid.set(originalId, id);
+      return item.id === id ? item : { ...item, id };
+    });
+    return { items: normalized, originalToValid };
+  };
+
+  const brandResult = normalizeCollection(value.brands, "brand");
+  const categoryResult = normalizeCollection(value.categories, "category");
+  const normalizedBrands = brandResult.items;
+  const normalizedCategories = categoryResult.items;
+  const products = value.products.map((product) => {
+    const knownBrandId = brandResult.originalToValid.get(product.brandId);
+    const matchingBrand = normalizedBrands.find((brand) => brand.id === knownBrandId || [brand.name.he, brand.name.ar, brand.name.en].some((name) => name.trim().toLocaleLowerCase() === product.brand.trim().toLocaleLowerCase()));
+    const brandId = matchingBrand?.id ?? knownBrandId ?? product.brandId;
+    const categoryId = categoryResult.originalToValid.get(product.categoryId) ?? product.categoryId;
+    if (brandId !== product.brandId || categoryId !== product.categoryId) repaired += 1;
+    return brandId === product.brandId && categoryId === product.categoryId ? product : { ...product, brandId, categoryId };
+  });
+
+  return {
+    content: repaired ? { ...value, brands: normalizedBrands, categories: normalizedCategories, products } : value,
+    repaired,
+  };
 }
 
 export default function AdminPage() {
@@ -197,6 +244,7 @@ export default function AdminPage() {
   }
 
   async function saveAll(next: SiteContent, successMessage = c("saved")) {
+    const normalized = normalizeCatalogIds(next);
     setBusy(true);
     setMessage("");
     setMessageError(false);
@@ -204,7 +252,7 @@ export default function AdminPage() {
       const response = await fetch("/api/admin/content", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
+        body: JSON.stringify(normalized.content),
       });
       const value = await response.json() as SiteContent & { error?: string };
       if (!response.ok) {
@@ -234,11 +282,13 @@ export default function AdminPage() {
         throw new Error(value.error ?? c("failed"));
       }
       setContent(value as SiteContent);
-      setMessage(successMessage);
+      setMessage(normalized.repaired ? `${successMessage} ${c("catalogIdsRepaired")}` : successMessage);
       setMessageError(false);
+      return value as SiteContent;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : c("failed"));
       setMessageError(true);
+      return null;
     } finally {
       setBusy(false);
     }
@@ -297,26 +347,45 @@ export default function AdminPage() {
     setMessage("");
   }
 
-  function saveProduct() {
+  async function saveProduct() {
     if (!draft) return;
+    const brandName = draft.brand.trim();
+    if (!brandName) {
+      setMessage(c("brandRequired"));
+      setMessageError(true);
+      return;
+    }
+    const existingBrand = content.brands.find((item) => [item.name.he, item.name.ar, item.name.en].some((name) => name.trim().toLocaleLowerCase() === brandName.toLocaleLowerCase()));
+    const preferredBrandId = catalogSlug(brandName);
+    const brandRecord = existingBrand ?? {
+      id: preferredBrandId.length >= 2 && !content.brands.some((item) => item.id === preferredBrandId) ? preferredBrandId : `brand-${crypto.randomUUID()}`,
+      name: { he: brandName, ar: brandName, en: brandName },
+      logo: "",
+      order: content.brands.length + 1,
+      visible: true,
+    };
+    const brands = existingBrand ? content.brands : [...content.brands, brandRecord];
     const productName = draft.name.trim() || draft.nameLocalized[language].trim();
     const nameLocalized = {
       he: draft.nameLocalized.he.trim() || productName,
       ar: draft.nameLocalized.ar.trim() || productName,
       en: draft.nameLocalized.en.trim() || productName,
     };
-    const product = { ...draft, name: productName, nameLocalized };
+    const product = { ...draft, brand: brandName, brandId: brandRecord.id, name: productName, nameLocalized };
     const exists = content.products.some((item) => item.id === product.id);
     const next = {
       ...content,
+      brands,
       products: exists
         ? content.products.map((item) => item.id === product.id ? product : item)
         : [...content.products, product],
     };
-    void saveAll(next);
-    setContent(next);
-    setDraft(product);
-    setSelectedId(product.id);
+    const saved = await saveAll(next);
+    if (saved) {
+      const savedProduct = saved.products.find((item) => item.id === product.id) ?? product;
+      setDraft(savedProduct);
+      setSelectedId(savedProduct.id);
+    }
   }
 
   function removeProduct(id: string) {
@@ -433,7 +502,7 @@ export default function AdminPage() {
                   return <section className="admin-panel admin-product-editor">
                     <div className="admin-panel-head"><div><span className="admin-eyebrow">{isNew ? c("addProduct") : c("edit")}</span><h2>{product.name || c("model")}</h2></div>{!isNew && <button className="admin-icon-danger" aria-label={c("remove")} title={c("remove")} onClick={() => removeProduct(product.id)}><Trash2 size={17} /></button>}</div>
                     <div className="admin-form-grid">
-                      <label>{c("brand")}<input value={product.brand} onChange={(event) => { const brand = event.target.value; const brandId = brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "brand-new"; const exists = content.brands.some((item) => item.id === brandId); const brands = exists ? content.brands : [...content.brands, { id: brandId, name: { he: brand, ar: brand, en: brand }, logo: "", order: content.brands.length + 1, visible: true }]; setContent({ ...content, brands }); setProduct({ brand, brandId }); }} /></label>
+                      <label>{c("brand")}<input value={product.brand} onChange={(event) => setProduct({ brand: event.target.value })} /></label>
                       <label>{c("model")}<input value={product.nameLocalized[language] || product.name} onChange={(event) => { const name = event.target.value; setProduct({ name, nameLocalized: { ...product.nameLocalized, [language]: name } }); }} /></label>
                       <label>{c("price")}<input type="number" min="0" step="1" value={product.price} onChange={(event) => setProduct({ price: Number(event.target.value) })} /></label>
                       <label>{c("btu")}<input type="number" min="0" step="1" value={product.cooling} onChange={(event) => setProduct({ cooling: Number(event.target.value) })} /></label>

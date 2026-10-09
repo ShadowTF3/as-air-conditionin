@@ -70,7 +70,9 @@ try {
 
   await page.getByRole("button", { name: "Add a model" }).click();
   const editor = page.locator(".admin-product-editor");
-  await editor.locator(".admin-form-grid input").nth(0).fill("QA Cooling");
+  const brandCountBeforeCreate = afterProduct.brands.length;
+  const brandInput = editor.locator(".admin-form-grid input").nth(0);
+  await brandInput.pressSequentially("QA Cooling");
   await editor.locator(".admin-form-grid input").nth(1).fill("QA Inverter 180");
   await editor.locator(".admin-form-grid input[type=number]").nth(0).fill("1490");
   await editor.locator(".admin-form-grid input[type=number]").nth(1).fill("9000");
@@ -90,6 +92,9 @@ try {
   assert.equal(addedProduct.nameLocalized.ar, "QA Inverter 180", "Missing Arabic model text should receive a fallback.");
   assert.equal(addedProduct.nameLocalized.en, "QA Inverter 180", "The entered English model name should be preserved.");
   assert.equal(addedProduct.room, "large", "The selected room type should be saved.");
+  assert.equal(afterCreate.brands.length, brandCountBeforeCreate + 1, "Typing a new brand should create one brand record only when the model is saved.");
+  assert.equal(addedProduct.brandId, "qa-cooling", "The saved model should use the stable ID generated from its brand name.");
+  assert.ok(afterCreate.brands.every((brand) => /^[a-z0-9-]{2,70}$/.test(brand.id)), "Saving a model must not leave invalid brand IDs from intermediate keystrokes.");
 
   page.on("dialog", (dialog) => dialog.accept());
   const deleteResponse = page.waitForResponse((response) =>
@@ -100,6 +105,31 @@ try {
   await page.locator(".admin-notice.success").waitFor();
   afterCreate = await (await context.request.get(contentUrl)).json();
   assert.ok(!afterCreate.products.some((item) => item.id === addedProduct.id), "A deleted model should be removed from saved content.");
+
+  await page.locator(".admin-sidebar > button").nth(3).click();
+  await page.locator(".cms-root").waitFor();
+  await page.locator(".cms-tabs button").nth(2).click();
+  await page.locator(".cms-subtabs button").nth(2).click();
+  const firstBrand = page.locator(".cms-list > .cms-entity").first();
+  if (!(await firstBrand.evaluate((element) => element.open))) await firstBrand.locator(":scope > .cms-entity-title").click();
+  await firstBrand.locator(".cms-entity-body .cms-field input").first().fill("1");
+  const invalidBrandIdSave = page.waitForResponse((response) => response.url().includes("/api/admin/content") && response.request().method() === "PUT");
+  await page.locator(".cms-sticky-save button").click();
+  assert.equal((await invalidBrandIdSave).status(), 200, "The CMS should repair a one-character brand ID while saving.");
+  let catalogAfterRepair = await (await context.request.get(contentUrl)).json();
+  assert.ok(catalogAfterRepair.brands.every((brand) => /^[a-z0-9-]{2,70}$/.test(brand.id)), "Brand IDs should be valid after save.");
+  assert.ok(catalogAfterRepair.products.every((product) => catalogAfterRepair.brands.some((brand) => brand.id === product.brandId)), "Repairing brand IDs should preserve all product links.");
+
+  await page.locator(".cms-subtabs button").nth(1).click();
+  const firstCategory = page.locator(".cms-list > .cms-entity").first();
+  if (!(await firstCategory.evaluate((element) => element.open))) await firstCategory.locator(":scope > .cms-entity-title").click();
+  await firstCategory.locator(".cms-entity-body .cms-field input").first().fill("1");
+  const invalidCategoryIdSave = page.waitForResponse((response) => response.url().includes("/api/admin/content") && response.request().method() === "PUT");
+  await page.locator(".cms-sticky-save button").click();
+  assert.equal((await invalidCategoryIdSave).status(), 200, "The CMS should repair a one-character category ID while saving.");
+  catalogAfterRepair = await (await context.request.get(contentUrl)).json();
+  assert.ok(catalogAfterRepair.categories.every((category) => /^[a-z0-9-]{2,70}$/.test(category.id)), "Category IDs should be valid after save.");
+  assert.ok(catalogAfterRepair.products.every((product) => catalogAfterRepair.categories.some((category) => category.id === product.categoryId)), "Repairing category IDs should preserve all product links.");
 
   await page.locator(".admin-sidebar > button").nth(2).click();
   await page.locator(".admin-business-form").waitFor();
