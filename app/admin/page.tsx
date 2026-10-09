@@ -94,10 +94,16 @@ const labels: Record<Language, Record<string, string>> = {
   },
 };
 
+const idEntityLabels: Record<Language, Record<string, string>> = {
+  he: { products: "מוצר", categories: "קטגוריה", brands: "מותג", offers: "מבצע", services: "שירות", faqs: "שאלה", "policies.items": "סעיף מדיניות", navigation: "קישור בתפריט", "footer.links": "קישור בתחתית", "settings.socialLinks": "קישור חברתי", "about.values": "יתרון", "servicePage.process": "שלב שירות" },
+  ar: { products: "منتج", categories: "تصنيف", brands: "علامة تجارية", offers: "عرض", services: "خدمة", faqs: "سؤال", "policies.items": "بند سياسة", navigation: "رابط القائمة", "footer.links": "رابط التذييل", "settings.socialLinks": "رابط اجتماعي", "about.values": "ميزة", "servicePage.process": "خطوة خدمة" },
+  en: { products: "Product", categories: "Category", brands: "Brand", offers: "Offer", services: "Service", faqs: "FAQ", "policies.items": "Policy item", navigation: "Navigation link", "footer.links": "Footer link", "settings.socialLinks": "Social link", "about.values": "Benefit", "servicePage.process": "Service step" },
+};
+
 function emptyProduct(): ManagedProduct {
   return {
     ...defaultSiteContent.products[0],
-    id: `model-${Date.now().toString(36)}`,
+    id: `model-${crypto.randomUUID()}`,
     brand: "",
     name: "",
     nameLocalized: { he: "", ar: "", en: "" },
@@ -211,9 +217,14 @@ export default function AdminPage() {
             phoneDisplay: c("displayPhone"), phoneE164: c("phoneIntl"), whatsappE164: c("whatsappIntl"),
           };
           const fields = [...new Set(issues.map(({ path }) => {
-            if (path[0] === "brands" && typeof path[1] === "number" && path[2] === "id") {
-              const brandNumber = path[1] + 1;
-              return language === "he" ? `מזהה המותג ${brandNumber}` : language === "ar" ? `معرّف العلامة التجارية ${brandNumber}` : `Brand ID ${brandNumber}`;
+            if (path.at(-1) === "id") {
+              const index = path.findLast((part) => typeof part === "number");
+              if (typeof index === "number") {
+                const collection = path.slice(0, path.lastIndexOf(index)).filter((part) => typeof part === "string").join(".");
+                const entity = idEntityLabels[language][collection] ?? (language === "he" ? "רשומה" : language === "ar" ? "سجل" : "Record");
+                if (collection === "brands") return language === "he" ? `מזהה המותג ${index + 1}` : language === "ar" ? `معرّف العلامة التجارية ${index + 1}` : `Brand ID ${index + 1}`;
+                return language === "he" ? `${entity} ${index + 1}: מזהה` : language === "ar" ? `معرّف ${entity} ${index + 1}` : `${entity} ID ${index + 1}`;
+              }
             }
             const key = path.map(String).findLast((part) => labelsByPath[part]);
             return key ? labelsByPath[key] : path.map(String).join(".");
