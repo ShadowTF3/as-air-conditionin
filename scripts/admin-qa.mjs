@@ -20,9 +20,10 @@ try {
   assert.equal(unauthenticated.status(), 401, "Admin API must reject an anonymous visitor.");
 
   await page.goto(new URL("/admin", baseUrl).href);
-  await page.getByLabel("שם משתמש").fill(username);
-  await page.getByLabel("סיסמה").fill(password);
-  await page.getByRole("button", { name: "כניסה ללוח הניהול" }).click();
+  await selectByValue(page, page.locator(".admin-language .select-field-trigger"), "en");
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Open admin dashboard" }).click();
   await page.locator(".admin-stat-grid").waitFor();
 
   for (const width of [320, 390, 768, 1440]) {
@@ -50,26 +51,78 @@ try {
   const productsButton = page.locator(".admin-sidebar > button").nth(1);
   await productsButton.click();
   await page.locator(".admin-product-editor").waitFor();
+  await selectByValue(page, page.locator(".admin-language .select-field-trigger"), "en");
   const contentUrl = new URL("/api/admin/content", baseUrl).href;
   const beforeProduct = await (await context.request.get(contentUrl)).json();
+  const invalidContent = structuredClone(beforeProduct);
+  invalidContent.products[0].nameLocalized.ar = "";
+  const invalidResponse = await context.request.put(contentUrl, { data: invalidContent });
+  assert.equal(invalidResponse.status(), 422, "Invalid content should be rejected with a validation error.");
+  const invalidBody = await invalidResponse.json();
+  assert.ok(invalidBody.issues.some((issue) => issue.path.join(".") === "products.0.nameLocalized.ar"), "A 422 response should identify the missing localized product name.");
+  assert.deepEqual(await (await context.request.get(contentUrl)).json(), beforeProduct, "Rejected content must not be persisted.");
   const originalPrice = beforeProduct.products[0].price;
   await page.locator(".admin-product-editor .admin-form-grid input[type=number]").first().fill(String(originalPrice + 1));
-  await page.getByRole("button", { name: "שמירת הדגם" }).click();
+  await page.getByRole("button", { name: "Save model" }).click();
   await page.locator(".admin-notice.success").waitFor();
   const afterProduct = await (await context.request.get(contentUrl)).json();
   assert.equal(afterProduct.products[0].price, originalPrice + 1, "Product price should persist.");
 
+  await page.getByRole("button", { name: "Add a model" }).click();
+  const editor = page.locator(".admin-product-editor");
+  await editor.locator(".admin-form-grid input").nth(0).fill("QA Cooling");
+  await editor.locator(".admin-form-grid input").nth(1).fill("QA Inverter 180");
+  await editor.locator(".admin-form-grid input[type=number]").nth(0).fill("1490");
+  await editor.locator(".admin-form-grid input[type=number]").nth(1).fill("9000");
+  await editor.locator(".admin-form-grid input").nth(4).fill("A++");
+  await selectByValue(page, editor.locator(".admin-form-grid .select-field-trigger"), "large");
+  const createResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/admin/content") && response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "Save model" }).click();
+  const created = await createResponse;
+  assert.equal(created.status(), 200, `Creating a model failed: ${await created.text()}`);
+  await page.locator(".admin-notice.success").waitFor();
+  let afterCreate = await (await context.request.get(contentUrl)).json();
+  const addedProduct = afterCreate.products.find((item) => item.name === "QA Inverter 180");
+  assert.ok(addedProduct, "A new product should be added through the admin form.");
+  assert.equal(addedProduct.nameLocalized.he, "QA Inverter 180", "Missing Hebrew model text should receive a fallback.");
+  assert.equal(addedProduct.nameLocalized.ar, "QA Inverter 180", "Missing Arabic model text should receive a fallback.");
+  assert.equal(addedProduct.nameLocalized.en, "QA Inverter 180", "The entered English model name should be preserved.");
+  assert.equal(addedProduct.room, "large", "The selected room type should be saved.");
+
+  page.on("dialog", (dialog) => dialog.accept());
+  const deleteResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/admin/content") && response.request().method() === "PUT",
+  );
+  await editor.getByRole("button", { name: "Remove model" }).click();
+  assert.equal((await deleteResponse).status(), 200, "Deleting a model should succeed.");
+  await page.locator(".admin-notice.success").waitFor();
+  afterCreate = await (await context.request.get(contentUrl)).json();
+  assert.ok(!afterCreate.products.some((item) => item.id === addedProduct.id), "A deleted model should be removed from saved content.");
+
   await page.locator(".admin-sidebar > button").nth(2).click();
   await page.locator(".admin-business-form").waitFor();
-  await page.getByLabel("מספר טלפון להצגה").fill("054-123-4567");
-  await page.getByLabel("טלפון בפורמט בינלאומי").fill("+972541234567");
-  await page.getByLabel("מספר WhatsApp בינלאומי").fill("+972541234567");
+  const beforeInvalidPhone = await (await context.request.get(contentUrl)).json();
+  await page.getByLabel("Phone in international format").fill("+1");
+  const invalidPhoneSave = page.waitForResponse((response) =>
+    response.url().includes("/api/admin/content") && response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "Save business details" }).click();
+  assert.equal((await invalidPhoneSave).status(), 422, "Invalid phone details should be rejected.");
+  await page.locator(".admin-notice.error").waitFor();
+  assert.match(await page.locator(".admin-notice.error").innerText(), /Phone in international format/, "The admin should identify the invalid phone field.");
+  const afterInvalidPhone = await (await context.request.get(contentUrl)).json();
+  assert.equal(afterInvalidPhone.settings.phoneE164, beforeInvalidPhone.settings.phoneE164, "Invalid phone details must not be persisted.");
+  await page.getByLabel("Display phone number").fill("054-123-4567");
+  await page.getByLabel("Phone in international format").fill("+972541234567");
+  await page.getByLabel("WhatsApp in international format").fill("+972541234567");
   const imageUpload = page.waitForResponse((response) =>
     response.url().includes("/api/admin/media") && response.request().method() === "POST",
   );
   await page.locator(".admin-business-form input[type=file]").first().setInputFiles("public/images/hero.webp");
   assert.equal((await imageUpload).status(), 200, "Admin image upload should succeed.");
-  await page.getByRole("button", { name: "שמירת פרטי העסק" }).click();
+  await page.getByRole("button", { name: "Save business details" }).click();
   await page.locator(".admin-notice.success").waitFor();
   const afterSettings = await (await context.request.get(contentUrl)).json();
   assert.equal(afterSettings.settings.phoneDisplay, "054-123-4567", "Phone display should persist.");
@@ -86,7 +139,7 @@ try {
   const afterLogout = await context.request.get(contentUrl);
   assert.equal(afterLogout.status(), 401, "Admin API should reject the expired session after logout.");
   await context.close();
-  console.log("Admin QA passed: protected login, product price update, business phone update and logout.");
+  console.log("Admin QA passed: protected login, validation diagnostics, product create/update/delete, phone/image updates and logout.");
 } finally {
   await browser.close();
 }

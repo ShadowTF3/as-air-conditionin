@@ -30,12 +30,18 @@ export async function PUT(request: Request) {
   const parsed = siteContentSchema.safeParse(input);
   if (!parsed.success) {
     return Response.json(
-      { error: "Check the product details, contact information and image selections." },
+      {
+        error: "Check the product details, contact information and image selections.",
+        issues: parsed.error.issues.slice(0, 20).map(({ path, message }) => ({ path, message })),
+      },
       { status: 422 },
     );
   }
   if (new Set(parsed.data.products.map((product) => product.id)).size !== parsed.data.products.length) {
-    return Response.json({ error: "Each product needs a unique model ID." }, { status: 422 });
+    return Response.json({
+      error: "Each product needs a unique model ID.",
+      issues: [{ path: ["products", "id"], message: "Product model IDs must be unique." }],
+    }, { status: 422 });
   }
   try {
     return Response.json(await writeSiteContent(parsed.data), {

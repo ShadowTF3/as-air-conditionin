@@ -8,6 +8,18 @@ const username = process.env.ADMIN_USERNAME;
 const password = process.env.ADMIN_PASSWORD;
 if (!username || !password) throw new Error("Set ADMIN_USERNAME and ADMIN_PASSWORD for the CMS QA run.");
 
+async function saveCmsChanges(page, label) {
+  const pending = page.waitForResponse((response) =>
+    response.url().includes("/api/admin/content") && response.request().method() === "PUT",
+  );
+  await page.locator(".cms-sticky-save button").click();
+  const response = await pending;
+  const body = await response.text();
+  assert.equal(response.status(), 200, `${label} failed to save: ${body}`);
+  await page.locator(".admin-notice.success").waitFor();
+  return JSON.parse(body);
+}
+
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext();
@@ -44,6 +56,7 @@ try {
   const original = await (await context.request.get(contentUrl)).json();
   await page.locator(".cms-tabs button").nth(2).click();
   const firstProduct = page.locator(".cms-list > .cms-entity").first();
+  await firstProduct.locator("summary").click();
   const initialPrice = original.products[0].price;
   await firstProduct.getByLabel("Price ₪", { exact: true }).fill(String(initialPrice + 7));
   await page.locator(".cms-sticky-save button").click();
@@ -67,6 +80,7 @@ try {
 
   await page.locator(".cms-tabs button").nth(1).click();
   const copyEntry = page.locator(".cms-copy-item").first();
+  await copyEntry.locator("summary").click();
   const originalArabic = (await context.request.get(contentUrl)).ok() ? saved.copy[0].ar : "";
   const changedArabic = `${originalArabic} · CMS QA`;
   await copyEntry.locator(".cms-localized-grid .cms-field input").nth(1).fill(changedArabic);
@@ -87,6 +101,90 @@ try {
   await page.locator(".admin-stat-grid").waitFor();
   await page.locator(".admin-sidebar > button").nth(3).click();
   await page.locator(".cms-tabs button").nth(10).click();
+
+  const getSavedContent = async () => (await context.request.get(contentUrl)).json();
+  await page.locator(".cms-tabs button").nth(2).click();
+  await page.locator(".cms-subtabs button").nth(0).click();
+  let beforeAdds = await getSavedContent();
+  await page.locator(".cms-card .admin-panel-head .admin-primary-button").first().click();
+  let afterAdds = await saveCmsChanges(page, "Adding a CMS product");
+  assert.equal(afterAdds.products.length, beforeAdds.products.length + 1, "CMS product addition should persist.");
+  const newCmsProduct = afterAdds.products.at(-1);
+  assert.ok(newCmsProduct.nameLocalized.he && newCmsProduct.nameLocalized.ar && newCmsProduct.nameLocalized.en, "New CMS products should include all three localized names.");
+
+  const newProductCard = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${newCmsProduct.id}"]`) });
+  await newProductCard.waitFor();
+  if (!(await newProductCard.evaluate((element) => element.open))) await newProductCard.locator("summary").click();
+  const specRepeater = newProductCard.locator(".cms-entity-body .cms-repeater").nth(1);
+  await specRepeater.locator(".cms-add-row").click();
+  const specFields = specRepeater.locator(".cms-grid").last().locator("input");
+  await specFields.nth(0).fill("QA specification HE");
+  await specFields.nth(1).fill("QA specification AR");
+  await specFields.nth(2).fill("QA specification EN");
+  await specFields.nth(3).fill("QA specification value");
+  const featureRepeater = newProductCard.locator(".cms-entity-body .cms-repeater").nth(2);
+  await featureRepeater.locator(".cms-add-row").click();
+  const featureFields = featureRepeater.locator(".cms-grid").last().locator("input");
+  await featureFields.nth(0).fill("QA feature HE");
+  await featureFields.nth(1).fill("QA feature AR");
+  await featureFields.nth(2).fill("QA feature EN");
+  afterAdds = await saveCmsChanges(page, "Adding product specification and feature rows");
+  const savedCmsProduct = afterAdds.products.find((item) => item.id === newCmsProduct.id);
+  assert.equal(savedCmsProduct.specs.length, 1, "A product specification row should persist.");
+  assert.equal(savedCmsProduct.features.length, 1, "A product feature row should persist.");
+
+  await page.locator(".cms-subtabs button").nth(1).click();
+  beforeAdds = await getSavedContent();
+  await page.locator(".cms-card .admin-panel-head .admin-primary-button").first().click();
+  afterAdds = await saveCmsChanges(page, "Adding a category");
+  assert.equal(afterAdds.categories.length, beforeAdds.categories.length + 1, "Category addition should persist.");
+
+  await page.locator(".cms-subtabs button").nth(2).click();
+  beforeAdds = await getSavedContent();
+  await page.locator(".cms-card .admin-panel-head .admin-primary-button").first().click();
+  afterAdds = await saveCmsChanges(page, "Adding a brand");
+  assert.equal(afterAdds.brands.length, beforeAdds.brands.length + 1, "Brand addition should persist.");
+
+  await page.locator(".cms-tabs button").nth(3).click();
+  beforeAdds = await getSavedContent();
+  await page.locator(".cms-card .admin-panel-head .admin-primary-button").first().click();
+  afterAdds = await saveCmsChanges(page, "Adding a service");
+  assert.equal(afterAdds.services.length, beforeAdds.services.length + 1, "Service addition should persist.");
+  const addedService = afterAdds.services.at(-1);
+  const addedServiceCard = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${addedService.id}"]`) });
+  if (!(await addedServiceCard.evaluate((element) => element.open))) await addedServiceCard.locator("summary").click();
+  await addedServiceCard.locator(".cms-repeater .cms-add-row").click();
+  afterAdds = await saveCmsChanges(page, "Adding a service detail");
+  assert.equal(afterAdds.services.find((item) => item.id === addedService.id).points.length, 1, "A service detail should persist.");
+
+  await page.locator(".cms-tabs button").nth(5).click();
+  beforeAdds = await getSavedContent();
+  await page.locator(".cms-card .admin-panel-head .admin-primary-button").first().click();
+  afterAdds = await saveCmsChanges(page, "Adding an about value");
+  assert.equal(afterAdds.about.values.length, beforeAdds.about.values.length + 1, "About value addition should persist.");
+
+  await page.locator(".cms-tabs button").nth(6).click();
+  beforeAdds = await getSavedContent();
+  const faqAndPolicyAddButtons = page.locator(".cms-card .admin-panel-head .admin-primary-button");
+  await faqAndPolicyAddButtons.nth(0).click();
+  await faqAndPolicyAddButtons.nth(1).click();
+  afterAdds = await saveCmsChanges(page, "Adding an FAQ and a policy");
+  assert.equal(afterAdds.faqs.length, beforeAdds.faqs.length + 1, "FAQ addition should persist.");
+  assert.equal(afterAdds.policies.items.length, beforeAdds.policies.items.length + 1, "Policy addition should persist.");
+
+  await page.locator(".cms-tabs button").nth(7).click();
+  beforeAdds = await getSavedContent();
+  const linkAddButtons = page.locator(".cms-add-row");
+  assert.equal(await linkAddButtons.count(), 3, "Navigation, footer and social link additions should all be available.");
+  await linkAddButtons.nth(0).click();
+  await linkAddButtons.nth(1).click();
+  await linkAddButtons.nth(2).click();
+  afterAdds = await saveCmsChanges(page, "Adding navigation, footer and social links");
+  assert.equal(afterAdds.navigation.length, beforeAdds.navigation.length + 1, "Navigation link addition should persist.");
+  assert.equal(afterAdds.footer.links.length, beforeAdds.footer.links.length + 1, "Footer link addition should persist.");
+  assert.equal(afterAdds.settings.socialLinks.length, beforeAdds.settings.socialLinks.length + 1, "Social link addition should persist.");
+
+  await page.locator(".cms-tabs button").nth(10).click();
   const upload = page.waitForResponse((response) => response.url().includes("/api/admin/media") && response.request().method() === "POST");
   await page.locator(".cms-upload-large input[type=file]").setInputFiles("public/images/hero.webp");
   const uploadResponse = await upload;
@@ -104,14 +202,18 @@ try {
   assert.equal(usedUploadResponse.status(), 200, "A second CMS media upload should succeed.");
   const usedImage = (await usedUploadResponse.json()).image;
   await page.locator(".cms-tabs button").nth(2).click();
+  await page.locator(".cms-subtabs button").nth(0).click();
+  const galleryProduct = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${original.products[0].id}"]`) });
+  if (!(await galleryProduct.evaluate((element) => element.open))) await galleryProduct.locator("summary").click();
   await selectByValue(page, page.locator(".cms-gallery-add .select-field-trigger").first(), usedImage);
   await page.locator(".cms-sticky-save button").click();
   await page.locator(".admin-notice.success").waitFor();
   saved = await (await context.request.get(contentUrl)).json();
-  assert.ok(saved.products[0].gallery.includes(usedImage), "Product gallery edits should persist from the CMS.");
+  assert.ok(saved.products.find((product) => product.id === original.products[0].id).gallery.includes(usedImage), "Product gallery edits should persist from the CMS.");
   await page.goto(new URL(`/products/${original.products[0].id}`, baseUrl).href);
-  await page.waitForFunction(() => document.querySelectorAll(".gallery-options button").length >= 3);
-  await page.locator(".gallery-options button").nth(1).click();
+  const galleryChoice = page.locator(".gallery-options button").filter({ has: page.locator(`img[src="${usedImage}"]`) });
+  await galleryChoice.waitFor();
+  await galleryChoice.click();
   await page.waitForFunction((image) => document.querySelector(".detail-visual > img")?.getAttribute("src") === image, usedImage);
   await page.goto(new URL("/admin", baseUrl).href);
   await page.locator(".admin-stat-grid").waitFor();

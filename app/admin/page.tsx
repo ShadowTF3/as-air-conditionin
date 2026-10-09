@@ -45,6 +45,7 @@ const labels: Record<Language, Record<string, string>> = {
     areaHe: "אזור שירות — עברית", areaAr: "אזור שירות — ערבית", areaEn: "אזור שירות — אנגלית",
     logo: "לוגו", hero: "תמונת פתיחה", pricesDemo: "הצגת המחירים כמחירים להמחשה", saveSettings: "שמירת פרטי העסק",
     saved: "השינויים נשמרו באתר.", saving: "שומר…", failed: "לא ניתן לשמור. בדקו את החיבור ואת פרטי הטופס.",
+    validationFields: "יש להשלים או לתקן את השדות הבאים:",
     uploadFailed: "העלאת התמונה נכשלה.", noProducts: "אין דגמים להצגה.", minimumProduct: "יש להשאיר לפחות דגם אחד בקטלוג.", unavailable: "לא זמין", edit: "עריכה",
     phoneHint: "לדוגמה: +972529504011", imageHint: "JPEG, PNG, WebP או AVIF עד 8MB.", confirmDelete: "להסיר את הדגם מהקטלוג?",
     back: "חזרה לאתר", updated: "שינויים בתוכן נשמרים ללא בנייה או העלאה מחדש של האתר.", sessionExpired: "פג תוקף הכניסה. התחברו שוב.",
@@ -65,6 +66,7 @@ const labels: Record<Language, Record<string, string>> = {
     areaHe: "منطقة الخدمة — العبرية", areaAr: "منطقة الخدمة — العربية", areaEn: "منطقة الخدمة — الإنجليزية",
     logo: "الشعار", hero: "صورة الواجهة الرئيسية", pricesDemo: "عرض الأسعار على أنها توضيحية", saveSettings: "حفظ بيانات الشركة",
     saved: "حُفظت التغييرات على الموقع.", saving: "جارٍ الحفظ…", failed: "تعذر الحفظ. تحقق من الاتصال والحقول.",
+    validationFields: "يرجى إكمال الحقول التالية أو تصحيحها:",
     uploadFailed: "تعذر رفع الصورة.", noProducts: "لا توجد موديلات للعرض.", minimumProduct: "يجب إبقاء موديل واحد على الأقل في الكتالوج.", unavailable: "غير متوفر", edit: "تعديل",
     phoneHint: "مثال: +972529504011", imageHint: "JPEG أو PNG أو WebP أو AVIF حتى 8 ميغابايت.", confirmDelete: "حذف الموديل من الكتالوج؟",
     back: "العودة إلى الموقع", updated: "تُحفظ تعديلات المحتوى دون إعادة بناء الموقع أو رفعه.", sessionExpired: "انتهت الجلسة. سجّل الدخول مجددًا.",
@@ -85,6 +87,7 @@ const labels: Record<Language, Record<string, string>> = {
     areaHe: "Service area — Hebrew", areaAr: "Service area — Arabic", areaEn: "Service area — English",
     logo: "Logo", hero: "Homepage hero image", pricesDemo: "Mark catalog prices as indicative", saveSettings: "Save business details",
     saved: "Changes are saved on the site.", saving: "Saving…", failed: "Could not save. Check your connection and the form fields.",
+    validationFields: "Please complete or correct these fields:",
     uploadFailed: "Image upload failed.", noProducts: "No models to display.", minimumProduct: "Keep at least one model in the catalog.", unavailable: "Unavailable", edit: "Edit",
     phoneHint: "Example: +972529504011", imageHint: "JPEG, PNG, WebP or AVIF up to 8 MB.", confirmDelete: "Remove this model from the catalog?",
     back: "Back to site", updated: "Content updates are saved without rebuilding or re-uploading the site.", sessionExpired: "Your session expired. Sign in again.",
@@ -198,7 +201,23 @@ export default function AdminPage() {
         body: JSON.stringify(next),
       });
       const value = await response.json() as SiteContent & { error?: string };
-      if (!response.ok) throw new Error(value.error ?? c("failed"));
+      if (!response.ok) {
+        const issues = (value as SiteContent & { issues?: Array<{ path: Array<string | number> }> }).issues;
+        if (response.status === 422 && issues?.length) {
+          const labelsByPath: Record<string, string> = {
+            nameLocalized: c("model"), name: c("model"), brand: c("brand"), brandId: c("brand"),
+            categoryId: c("room"), room: c("room"), price: c("price"), previousPrice: c("price"),
+            cooling: c("btu"), energy: c("energy"), image: c("image"), socialImage: c("image"),
+            phoneDisplay: c("displayPhone"), phoneE164: c("phoneIntl"), whatsappE164: c("whatsappIntl"),
+          };
+          const fields = [...new Set(issues.map(({ path }) => {
+            const key = path.map(String).findLast((part) => labelsByPath[part]);
+            return key ? labelsByPath[key] : path.map(String).join(".");
+          }))];
+          throw new Error(`${c("validationFields")} ${fields.join(", ")}`);
+        }
+        throw new Error(value.error ?? c("failed"));
+      }
       setContent(value as SiteContent);
       setMessage(successMessage);
       setMessageError(false);
@@ -265,16 +284,24 @@ export default function AdminPage() {
 
   function saveProduct() {
     if (!draft) return;
-    const exists = content.products.some((product) => product.id === draft.id);
+    const productName = draft.name.trim() || draft.nameLocalized[language].trim();
+    const nameLocalized = {
+      he: draft.nameLocalized.he.trim() || productName,
+      ar: draft.nameLocalized.ar.trim() || productName,
+      en: draft.nameLocalized.en.trim() || productName,
+    };
+    const product = { ...draft, name: productName, nameLocalized };
+    const exists = content.products.some((item) => item.id === product.id);
     const next = {
       ...content,
       products: exists
-        ? content.products.map((product) => product.id === draft.id ? draft : product)
-        : [...content.products, draft],
+        ? content.products.map((item) => item.id === product.id ? product : item)
+        : [...content.products, product],
     };
     void saveAll(next);
     setContent(next);
-    setSelectedId(draft.id);
+    setDraft(product);
+    setSelectedId(product.id);
   }
 
   function removeProduct(id: string) {
