@@ -211,6 +211,10 @@ export default function AdminPage() {
             phoneDisplay: c("displayPhone"), phoneE164: c("phoneIntl"), whatsappE164: c("whatsappIntl"),
           };
           const fields = [...new Set(issues.map(({ path }) => {
+            if (path[0] === "brands" && typeof path[1] === "number" && path[2] === "id") {
+              const brandNumber = path[1] + 1;
+              return language === "he" ? `מזהה המותג ${brandNumber}` : language === "ar" ? `معرّف العلامة التجارية ${brandNumber}` : `Brand ID ${brandNumber}`;
+            }
             const key = path.map(String).findLast((part) => labelsByPath[part]);
             return key ? labelsByPath[key] : path.map(String).join(".");
           }))];

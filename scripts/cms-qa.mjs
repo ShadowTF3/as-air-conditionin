@@ -140,10 +140,31 @@ try {
   assert.equal(afterAdds.categories.length, beforeAdds.categories.length + 1, "Category addition should persist.");
 
   await page.locator(".cms-subtabs button").nth(2).click();
+  await selectByValue(page, page.locator(".admin-language .select-field-trigger"), "he");
   beforeAdds = await getSavedContent();
-  await page.locator(".cms-card .admin-panel-head .admin-primary-button").first().click();
-  afterAdds = await saveCmsChanges(page, "Adding a brand");
-  assert.equal(afterAdds.brands.length, beforeAdds.brands.length + 1, "Brand addition should persist.");
+  const addBrandButton = page.locator(".cms-card .admin-panel-head .admin-primary-button").first();
+  await addBrandButton.click();
+  await addBrandButton.click();
+  afterAdds = await saveCmsChanges(page, "Adding two brands in Hebrew");
+  assert.equal(afterAdds.brands.length, beforeAdds.brands.length + 2, "Brand additions should persist in Hebrew.");
+  const addedBrands = afterAdds.brands.slice(beforeAdds.brands.length);
+  assert.notEqual(addedBrands[0].id, addedBrands[1].id, "New brands need unique stable IDs.");
+  const duplicateBrandCard = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${addedBrands[1].id}"]`) });
+  if (!(await duplicateBrandCard.evaluate((element) => element.open))) await duplicateBrandCard.locator("summary").click();
+  await duplicateBrandCard.locator(".cms-entity-body .cms-field input").first().fill(addedBrands[0].id);
+  const invalidBrandSave = page.waitForResponse((response) => response.url().includes("/api/admin/content") && response.request().method() === "PUT");
+  await page.locator(".cms-sticky-save button").click();
+  const invalidBrandResponse = await invalidBrandSave;
+  assert.equal(invalidBrandResponse.status(), 422, "Duplicate brand IDs should be rejected clearly.");
+  const invalidBrandBody = await invalidBrandResponse.json();
+  const duplicateIndex = afterAdds.brands.findIndex((item) => item.id === addedBrands[1].id);
+  assert.ok(invalidBrandBody.issues.some((issue) => issue.path.join(".") === `brands.${duplicateIndex}.id`), "The duplicate brand should be identified by its array position.");
+  assert.match(await page.locator(".admin-notice.error").innerText(), /מזהה המותג/, "Hebrew validation should name the brand ID in plain language.");
+  assert.equal((await getSavedContent()).brands[duplicateIndex].id, addedBrands[1].id, "Rejected duplicate brand IDs must not be persisted.");
+  const repairBrandCard = page.locator(".cms-list > .cms-entity").filter({ has: page.locator(`input[value="${addedBrands[0].id}"]`) }).nth(1);
+  await repairBrandCard.locator(".cms-entity-body .cms-field input").first().fill(`brand-cms-qa-${Date.now()}`);
+  afterAdds = await saveCmsChanges(page, "Repairing a duplicate brand ID");
+  assert.equal(new Set(afterAdds.brands.map((item) => item.id)).size, afterAdds.brands.length, "Brand IDs should be unique after repair.");
 
   await page.locator(".cms-tabs button").nth(3).click();
   beforeAdds = await getSavedContent();
