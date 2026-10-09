@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { chromium } from "@playwright/test";
+import { selectByValue } from "./select-helper.mjs";
 
 const baseUrl = new URL(
   process.env.SITE_TEST_BASE_URL ?? "http://127.0.0.1:3000",
@@ -27,7 +28,7 @@ try {
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const language of ["he", "ar", "en"]) {
-      await page.locator(".admin-language select").selectOption(language);
+      await selectByValue(page, page.locator(".admin-language .select-field-trigger"), language);
       await page.waitForFunction((value) => document.documentElement.lang === value, language);
       const layout = await page.evaluate(() => ({
         viewport: window.innerWidth,
@@ -38,7 +39,7 @@ try {
       assert.equal(layout.direction, language === "en" ? "ltr" : "rtl", `Admin direction should match ${language}.`);
     }
   }
-  await page.locator(".admin-language select").selectOption("he");
+  await selectByValue(page, page.locator(".admin-language .select-field-trigger"), "he");
   await page.setViewportSize({ width: 1440, height: 1000 });
   mkdirSync("qa", { recursive: true });
   await page.screenshot({ path: "qa/admin-desktop.png", fullPage: true });

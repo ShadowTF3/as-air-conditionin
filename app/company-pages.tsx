@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "./site-link";
+import { SelectField } from "./select-field";
 import {
   Wrench,
   Wind,
@@ -430,7 +431,7 @@ export function Contact({ t }: Props) {
               </label>
               <label className="field">
                 <span>{t("סוג הבקשה", "نوع الطلب", "What do you need?")}</span>
-                <select
+                <SelectField
                   value={service}
                   onChange={(e) => {
                     setService(e.target.value);
@@ -442,7 +443,7 @@ export function Contact({ t }: Props) {
                       {label}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <label className="field full">
                 <span>
@@ -452,7 +453,7 @@ export function Contact({ t }: Props) {
                     "Model you’re interested in",
                   )}
                 </span>
-                <select
+                <SelectField
                   value={product}
                   onChange={(e) => {
                     setProduct(e.target.value);
@@ -471,7 +472,7 @@ export function Contact({ t }: Props) {
                       {productBrand(p, content.brands, lang)} {productTitle(p, lang)}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <label className="field full">
                 <span>

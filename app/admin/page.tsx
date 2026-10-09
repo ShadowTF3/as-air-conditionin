@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "../site-link";
+import { SelectField } from "../select-field";
 import {
   AirVent,
   ArrowDownToLine,
@@ -307,9 +308,9 @@ export default function AdminPage() {
         <div className="admin-top-actions">
           <Link href="/" className="admin-view-site"><ArrowDownToLine size={16} />{c("back")}</Link>
           <label className="admin-language">
-            <select aria-label={c("language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
+            <SelectField aria-label={c("language")} value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
               <option value="he">עברית</option><option value="ar">العربية</option><option value="en">English</option>
-            </select><ChevronDown size={14} />
+            </SelectField>
           </label>
         </div>
       </header>
@@ -395,7 +396,7 @@ export default function AdminPage() {
                       <label>{c("price")}<input type="number" min="0" step="1" value={product.price} onChange={(event) => setProduct({ price: Number(event.target.value) })} /></label>
                       <label>{c("btu")}<input type="number" min="0" step="1" value={product.cooling} onChange={(event) => setProduct({ cooling: Number(event.target.value) })} /></label>
                       <label>{c("energy")}<input value={product.energy} onChange={(event) => setProduct({ energy: event.target.value })} /></label>
-                      <label>{c("room")}<select value={product.room} onChange={(event) => setProduct({ room: event.target.value as ManagedProduct["room"], categoryId: event.target.value })}><option value="bedroom">{c("bedroom")}</option><option value="living">{c("living")}</option><option value="large">{c("large")}</option></select></label>
+                      <label>{c("room")}<SelectField value={product.room} onChange={(event) => setProduct({ room: event.target.value as ManagedProduct["room"], categoryId: event.target.value })}><option value="bedroom">{c("bedroom")}</option><option value="living">{c("living")}</option><option value="large">{c("large")}</option></SelectField></label>
                     </div>
                     <label className="admin-toggle-row"><input type="checkbox" checked={product.available} onChange={(event) => setProduct({ available: event.target.checked })} /><span><b>{c("availableToggle")}</b><small>{product.available ? c("live") : c("unavailable")}</small></span></label>
                     <div className="admin-upload-field"><span className="admin-field-label">{c("image")}</span><div className="admin-image-preview"><img src={product.image} alt="" /><label className="admin-upload-button"><Upload size={16} />{c("upload")}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={busy} onChange={(event) => { void uploadForProduct(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label></div><small>{c("imageHint")}</small></div>

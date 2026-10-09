@@ -1,4 +1,5 @@
 import { chromium, expect } from "@playwright/test";
+import { selectByValue } from "./select-helper.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 mkdirSync("qa", { recursive: true });
 const browser = await chromium.launch();
@@ -41,6 +42,15 @@ for (const lang of ["he", "ar", "en"]) {
       await page.locator("body[data-ready=true]").waitFor();
       await page.locator(`html[lang="${lang}"]`).waitFor();
       await page.evaluate(() => document.fonts.ready);
+      if (width === 1440 && route === "/products") {
+        const filter = page.locator(".filters .select-field-trigger").first();
+        await filter.click();
+        await page.getByRole("listbox").waitFor({ state: "visible" });
+        const labels = await page.getByRole("option").allTextContents();
+        expect(labels.length).toBeGreaterThan(1);
+        expect(labels.every((label) => label.trim().length > 0)).toBe(true);
+        await page.keyboard.press("Escape");
+      }
       const metrics = await page.evaluate(() => ({
         width: innerWidth,
         scroll: document.documentElement.scrollWidth,
@@ -110,7 +120,7 @@ page.on("console", (m) => {
 await page.goto(siteUrl("/products"));
 await page.locator("body[data-ready=true]").waitFor();
 await expect(page.locator(".product-card")).toHaveCount(6);
-await page.locator(".filters select").first().selectOption("Electra");
+await selectByValue(page, page.locator(".filters .select-field-trigger").first(), "electra");
 await expect(page.locator(".product-card")).toHaveCount(2);
 await page.locator("input[type=search]").fill("no-such-model");
 await expect(page.locator(".empty-state")).toBeVisible();
@@ -135,8 +145,8 @@ await expect(page.locator(".installation-info")).toBeVisible();
 await page.goto(
   siteUrl("/contact?service=repair&product=electra-a-240"),
 );
-await expect(page.locator("select").nth(1)).toHaveValue("repair");
-await expect(page.locator("select").nth(2)).toHaveValue("electra-a-240");
+await expect(page.locator(".field .select-field-trigger").nth(0)).toHaveAttribute("data-value", "repair");
+await expect(page.locator(".field .select-field-trigger").nth(1)).toHaveAttribute("data-value", "electra-a-240");
 await page.locator("form input").nth(0).fill("בדיקת עיצוב");
 await page.locator("form input").nth(1).fill("0520000000");
 await page.locator("form input").nth(2).fill("תל אביב");
@@ -153,9 +163,9 @@ await expect(page.locator(".nav")).toBeVisible();
 await page.locator(".nav a").nth(1).click();
 await expect(page).toHaveURL(siteUrl("/products"));
 await expect(page.locator(".nav")).not.toBeVisible();
-await page.locator(".language").selectOption("en");
+await selectByValue(page, page.locator(".language"), "en");
 await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-await page.locator(".language").selectOption("ar");
+await selectByValue(page, page.locator(".language"), "ar");
 await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 await page.goto(siteUrl("/faq"));
 await page.locator(".faq-list summary").first().click();

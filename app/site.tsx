@@ -1,6 +1,7 @@
 "use client";
 import { Fragment, useState, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import Link from "./site-link";
+import { SelectField } from "./select-field";
 import {
   Snowflake,
   Phone,
@@ -145,7 +146,7 @@ export default function Site({
             ))}
           </nav>
           <div className="header-actions">
-            <select
+            <SelectField
               className="language"
               value={lang}
               onChange={(e) => changeLang(e.target.value as Lang)}
@@ -154,7 +155,7 @@ export default function Site({
               <option value="he">עברית</option>
               <option value="ar">العربية</option>
               <option value="en">EN</option>
-            </select>
+            </SelectField>
             <Link
               href={settings.headerCtaHref}
               className="button small header-cta"

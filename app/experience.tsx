@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "./site-link";
+import { SelectField } from "./select-field";
 import {
   Snowflake,
   Leaf,
@@ -310,19 +311,19 @@ export function Catalog({ t }: Props) {
             </label>
             <label className="field">
               <span>{t("מותג", "العلامة التجارية", "Brand")}</span>
-              <select value={brand} onChange={(e) => setBrand(e.target.value)}>
+              <SelectField value={brand} onChange={(e) => setBrand(e.target.value)}>
                 <option value="all">
                   {t("כל המותגים", "جميع العلامات", "All brands")}
                 </option>
                 {brands.map((item) => <option value={item.id} key={item.id}>{localize(item.name, lang)}</option>)}
-              </select>
+              </SelectField>
             </label>
             <label className="field">
               <span>{t("קטגוריה", "التصنيف", "Category")}</span>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <SelectField value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="all">{t("כל הקטגוריות", "جميع التصنيفات", "All categories")}</option>
                 {categories.map((item) => <option key={item.id} value={item.id}>{localize(item.name, lang)}</option>)}
-              </select>
+              </SelectField>
             </label>
             <button className="text-link reset-button" onClick={reset}>
               {t("איפוס סינון", "إعادة ضبط الفلاتر", "Reset filters")}
@@ -355,7 +356,7 @@ export function Catalog({ t }: Props) {
               </span>
               <label>
                 {t("מיון לפי", "رتب حسب", "Sort by")}
-                <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                <SelectField value={sort} onChange={(e) => setSort(e.target.value)}>
                   <option value="featured">
                     {t("סדר מומלץ", "الترتيب المقترح", "Featured")}
                   </option>
@@ -373,7 +374,7 @@ export function Catalog({ t }: Props) {
                       "Price: high to low",
                     )}
                   </option>
-                </select>
+                </SelectField>
               </label>
             </div>
             <div className="products-grid">

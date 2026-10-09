@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { chromium } from "@playwright/test";
+import { selectByValue } from "./select-helper.mjs";
 
 const baseUrl = new URL(process.env.SITE_TEST_BASE_URL ?? "http://127.0.0.1:3000");
 const username = process.env.ADMIN_USERNAME;
@@ -12,7 +13,7 @@ try {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(new URL("/admin", baseUrl).href);
-  await page.locator(".admin-language select").selectOption("en");
+  await selectByValue(page, page.locator(".admin-language .select-field-trigger"), "en");
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Open admin dashboard" }).click();
@@ -23,7 +24,7 @@ try {
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 920 });
     for (const language of ["he", "ar", "en"]) {
-      await page.locator(".admin-language select").selectOption(language);
+      await selectByValue(page, page.locator(".admin-language .select-field-trigger"), language);
       await page.waitForFunction((value) => document.documentElement.lang === value, language);
       const size = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
       assert.ok(size.document <= size.viewport + 2, `CMS overflows at ${width}px in ${language}.`);
@@ -31,7 +32,7 @@ try {
     }
   }
 
-  await page.locator(".admin-language select").selectOption("en");
+  await selectByValue(page, page.locator(".admin-language .select-field-trigger"), "en");
   await page.setViewportSize({ width: 1440, height: 1000 });
   mkdirSync("qa", { recursive: true });
   await page.screenshot({ path: "qa/admin-cms-desktop.png", fullPage: true });
@@ -103,7 +104,7 @@ try {
   assert.equal(usedUploadResponse.status(), 200, "A second CMS media upload should succeed.");
   const usedImage = (await usedUploadResponse.json()).image;
   await page.locator(".cms-tabs button").nth(2).click();
-  await page.locator(".cms-gallery-add select").first().selectOption(usedImage);
+  await selectByValue(page, page.locator(".cms-gallery-add .select-field-trigger").first(), usedImage);
   await page.locator(".cms-sticky-save button").click();
   await page.locator(".admin-notice.success").waitFor();
   saved = await (await context.request.get(contentUrl)).json();
@@ -117,7 +118,7 @@ try {
   await page.locator(".admin-sidebar > button").nth(3).click();
   await page.locator(".cms-tabs button").nth(10).click();
   await page.locator(".cms-tabs button").nth(7).click();
-  await page.getByLabel("Company logo").selectOption(usedImage);
+  await selectByValue(page, page.getByLabel("Company logo"), usedImage);
   await page.locator(".cms-sticky-save button").click();
   await page.locator(".admin-notice.success").waitFor();
   await page.locator(".cms-tabs button").nth(10).click();
