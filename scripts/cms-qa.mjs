@@ -20,6 +20,11 @@ async function saveCmsChanges(page, label) {
   return JSON.parse(body);
 }
 
+async function editLocalizedText(field, language, text) {
+  await field.locator(`.cms-language-tab[data-language="${language}"]`).click();
+  await field.locator(".cms-localized-editor input, .cms-localized-editor textarea").fill(text);
+}
+
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext();
@@ -85,15 +90,19 @@ try {
   await copyEntry.locator("summary").click();
   const originalArabic = (await context.request.get(contentUrl)).ok() ? saved.copy[0].ar : "";
   const changedArabic = `${originalArabic} · CMS QA`;
-  await copyEntry.locator(".cms-localized-grid .cms-field input").nth(1).fill(changedArabic);
+  const copyEntryField = copyEntry.locator(".cms-localized");
+  await editLocalizedText(copyEntryField, "ar", changedArabic);
+  await copyEntryField.locator(".cms-copy-all-languages").click();
   await page.locator(".cms-sticky-save button").click();
   await page.locator(".admin-notice.success").waitFor();
   saved = await (await context.request.get(contentUrl)).json();
   assert.equal(saved.copy[0].ar, changedArabic, "A visitor-facing translation should persist.");
+  assert.equal(saved.copy[0].he, changedArabic, "Copy to all languages should copy the active translation.");
+  assert.equal(saved.copy[0].en, changedArabic, "Copy to all languages should update every translation.");
 
   await page.locator(".cms-tabs button").nth(8).click();
   const newTitle = "CMS metadata QA title";
-  await page.locator(".cms-card").nth(1).locator(".cms-localized-grid input").first().fill(newTitle);
+  await editLocalizedText(page.locator(".cms-card").nth(1).locator(".cms-localized").first(), "he", newTitle);
   await page.locator(".cms-sticky-save button").click();
   await page.locator(".admin-notice.success").waitFor();
   await page.goto(new URL("/", baseUrl).href);
@@ -119,27 +128,31 @@ try {
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: "qa/admin-product-quick-add.png", fullPage: true });
-  await quickProduct.locator(".cms-product-quick-grid .cms-field input").first().fill("QA Quick Hebrew");
+  const quickName = quickProduct.locator(".cms-product-quick-name .cms-localized");
+  await editLocalizedText(quickName, "he", "QA Quick Hebrew");
+  await editLocalizedText(quickName, "ar", "QA Quick Model AR");
+  await editLocalizedText(quickName, "en", "QA Quick Model EN");
   await quickProduct.locator(".cms-product-quick-grid input[type=number]").nth(0).fill("1490");
   await quickProduct.locator(".cms-product-quick-grid input[type=number]").nth(1).fill("9000");
   await selectByValue(page, quickProduct.locator(".cms-product-quick-image .select-field-trigger"), "/images/tadiran.webp");
-  await quickProduct.locator(".cms-product-quick-section").first().locator(".cms-localized-grid input").nth(1).fill("QA Quick Model EN");
   assert.equal(await quickProduct.locator(".cms-product-quick-section").last().locator("label.cms-field select").count(), 0, "A room category should not show a second, duplicate room-size selector.");
   const quickSpecRepeater = quickProduct.locator(".cms-product-quick-specs");
   await quickSpecRepeater.locator(".cms-add-row").click();
   const quickSpecRow = quickSpecRepeater.locator(".cms-product-quick-row").first();
-  await quickSpecRow.locator(".cms-localized-grid input").nth(0).fill("מפרט בדיקה");
-  await quickSpecRow.locator(".cms-localized-grid input").nth(1).fill("مواصفة اختبار");
-  await quickSpecRow.locator(".cms-localized-grid input").nth(2).fill("QA specification");
-  await quickSpecRow.locator(".cms-field input").nth(3).fill("9,000 BTU");
+  const quickSpecField = quickSpecRow.locator(".cms-localized");
+  await editLocalizedText(quickSpecField, "he", "QA specification HE");
+  await editLocalizedText(quickSpecField, "ar", "QA specification AR");
+  await editLocalizedText(quickSpecField, "en", "QA specification EN");
+  await quickSpecRow.locator(".cms-field input").last().fill("9,000 BTU");
   const quickFeatureRepeater = quickProduct.locator(".cms-product-quick-features");
   await quickFeatureRepeater.locator(".cms-add-row").click();
   const quickFeatureRow = quickFeatureRepeater.locator(".cms-product-quick-row").first();
-  await quickFeatureRow.locator(".cms-localized-grid input").nth(0).fill("יתרון בדיקה");
-  await quickFeatureRow.locator(".cms-localized-grid input").nth(1).fill("ميزة اختبار");
-  await quickFeatureRow.locator(".cms-localized-grid input").nth(2).fill("QA feature");
+  const quickFeatureField = quickFeatureRow.locator(".cms-localized");
+  await editLocalizedText(quickFeatureField, "he", "QA feature HE");
+  await editLocalizedText(quickFeatureField, "ar", "QA feature AR");
+  await editLocalizedText(quickFeatureField, "en", "QA feature EN");
   await selectByValue(page, quickProduct.locator(".cms-product-quick-gallery .cms-gallery-add .select-field-trigger"), "/images/electra.webp");
-  await quickProduct.locator(".cms-product-quick-section").nth(2).locator(".cms-localized-grid input").nth(2).fill("QA product SEO title");
+  await editLocalizedText(quickProduct.locator(".cms-product-quick-section").nth(2).locator(".cms-localized").first(), "en", "QA product SEO title");
   await quickProduct.locator(".cms-product-quick-actions .admin-primary-button").click();
   const sourceProductCard = page.locator(".cms-list > .cms-entity").first();
   if (!(await sourceProductCard.evaluate((element) => element.open))) await sourceProductCard.locator(":scope > .cms-entity-title").click();
@@ -147,7 +160,9 @@ try {
   assert.equal(await sourceProductCard.locator('[data-cms-product-section="translations"]').count(), 0, "The duplicate translations accordion should be removed.");
   await sourceProductCard.locator(".cms-copy-product").click();
   const duplicateQuickProduct = page.locator(".cms-product-quick");
-  await duplicateQuickProduct.locator(".cms-product-quick-grid .cms-field input").first().fill("QA Duplicate Hebrew");
+  const duplicateName = duplicateQuickProduct.locator(".cms-product-quick-name .cms-localized");
+  await editLocalizedText(duplicateName, "he", "QA Duplicate Hebrew");
+  await duplicateName.locator(".cms-copy-all-languages").click();
   await duplicateQuickProduct.locator(".cms-product-quick-grid input[type=number]").nth(0).fill("1590");
   await duplicateQuickProduct.locator(".cms-product-quick-grid input[type=number]").nth(1).fill("9500");
   await duplicateQuickProduct.locator(".cms-product-quick-actions .admin-primary-button").click();
@@ -155,7 +170,9 @@ try {
   assert.equal(afterAdds.products.length, beforeAdds.products.length + 2, "CMS product additions should persist in Hebrew.");
   assert.equal(new Set(afterAdds.products.map((item) => item.id)).size, afterAdds.products.length, "New CMS products must have unique IDs.");
   const addedCmsProducts = afterAdds.products.slice(beforeAdds.products.length);
-  assert.equal(addedCmsProducts[0].nameLocalized.en, "QA Quick Model EN", "Quick product addition should save all three model translations.");
+  assert.equal(addedCmsProducts[0].nameLocalized.he, "QA Quick Hebrew", "Quick product addition should save the Hebrew model name.");
+  assert.equal(addedCmsProducts[0].nameLocalized.ar, "QA Quick Model AR", "Quick product addition should save the Arabic model name.");
+  assert.equal(addedCmsProducts[0].nameLocalized.en, "QA Quick Model EN", "Quick product addition should save the English model name.");
   assert.equal(addedCmsProducts[0].specs.length, 1, "Quick product addition should save specification rows.");
   assert.equal(addedCmsProducts[0].features.length, 1, "Quick product addition should save feature rows.");
   assert.ok(addedCmsProducts[0].gallery.includes("/images/electra.webp"), "Quick product addition should save gallery images.");

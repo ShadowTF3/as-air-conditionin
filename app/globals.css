@@ -3225,8 +3225,16 @@ html[lang="en"] .admin-root { font-family: Manrope, Arial, sans-serif; }
 .cms-field textarea:focus { border-color: #5e9cbe; outline: 0; box-shadow: 0 0 0 3px #dceff8; }
 .cms-localized { min-width: 0; padding: 13px; margin: 0; border: 1px solid #e5ebef; border-radius: 10px; }
 .cms-localized legend { padding: 0 5px; color: #496679; font-size: 11px; font-weight: 800; }
+.cms-localized-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.cms-language-tabs { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid #e3ebef; border-radius: 9px; background: #f6f9fb; }
+.cms-language-tab { min-height: 29px; padding: 0 10px; border: 0; border-radius: 6px; color: #68808e; background: transparent; font-size: 10px; font-weight: 800; }
+.cms-language-tab[aria-pressed="true"] { color: #155d8d; background: #fff; box-shadow: 0 1px 4px #183e5014; }
+.cms-copy-all-languages { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 31px; padding: 0 9px; border: 1px solid #d9e7ee; border-radius: 7px; color: #286b90; background: #fff; font-size: 10px; font-weight: 800; }
+.cms-copy-all-languages:hover { background: #edf7fb; }
+.cms-localized-editor { margin-top: 10px; }
+.cms-localized-editor .cms-field span { color: #8395a0; font-size: 10px; }
+.cms-product-quick-name { grid-column: 1 / -1; min-width: 0; }
 .cms-localized-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.cms-product-quick-name-translations .cms-localized-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cms-localized-grid .cms-field span { color: #8395a0; font-size: 10px; }
 .cms-localized-grid .cms-field textarea { min-height: 74px; }
 .cms-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 37px; color: #506b7c; font-size: 12px; font-weight: 700; }
@@ -3396,7 +3404,10 @@ html[lang="en"] .admin-root { font-family: Manrope, Arial, sans-serif; }
   .cms-product-quick-actions > button { flex: 1; }
   .cms-product-quick-row { grid-template-columns: minmax(0, 1fr) auto; }
   .cms-localized-grid { grid-template-columns: 1fr; }
-  .cms-product-quick-name-translations .cms-localized-grid { grid-template-columns: 1fr; }
+  .cms-localized-toolbar { align-items: stretch; }
+  .cms-language-tabs { justify-content: space-between; flex: 1 1 100%; }
+  .cms-language-tab { flex: 1; }
+  .cms-copy-all-languages { align-self: flex-start; }
   .cms-localized { padding: 10px; }
   .cms-tabs { margin-inline: -2px; }
   .cms-tabs button { padding-inline: 10px; }
