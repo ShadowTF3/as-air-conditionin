@@ -156,6 +156,10 @@ try {
   await addedServiceCard.locator(".cms-repeater .cms-add-row").click();
   afterAdds = await saveCmsChanges(page, "Adding a service detail");
   assert.equal(afterAdds.services.find((item) => item.id === addedService.id).points.length, 1, "A service detail should persist.");
+  beforeAdds = await getSavedContent();
+  await page.locator(".cms-card").nth(1).locator(".cms-add-row").click();
+  afterAdds = await saveCmsChanges(page, "Adding a service process step");
+  assert.equal(afterAdds.servicePage.process.length, beforeAdds.servicePage.process.length + 1, "A service process step should persist.");
 
   await page.locator(".cms-tabs button").nth(5).click();
   beforeAdds = await getSavedContent();
@@ -239,7 +243,7 @@ try {
   const anonymous = await context.request.get(contentUrl);
   assert.equal(anonymous.status(), 401, "Admin content should remain protected after logout.");
   await context.close();
-  console.log("CMS QA passed: multilingual layout, product price, offer, copy, SEO, media upload/deletion and protected session.");
+  console.log("CMS QA passed: multilingual layout, product catalog and add buttons, all content groups, service process, gallery/media, SEO and protected session.");
 } finally {
   await browser.close();
 }
