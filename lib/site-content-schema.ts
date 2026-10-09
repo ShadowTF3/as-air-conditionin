@@ -44,6 +44,7 @@ const managedProductSchema = z.object({
   price: z.number().finite().min(0).max(1_000_000),
   previousPrice: z.number().finite().min(0).max(1_000_000).optional(),
   cooling: z.number().finite().min(0).max(1_000_000),
+  heating: z.number().finite().min(0).max(1_000_000).optional(),
   energy: requiredText.max(30),
   room: z.enum(["bedroom", "living", "large"]),
   image: imagePath,

@@ -4,6 +4,7 @@ export interface Product {
   name: string;
   price: number;
   cooling: number;
+  heating?: number;
   energy: string;
   room: string;
   available?: boolean;
@@ -50,6 +51,7 @@ export const products: Product[] = [
     name: "ALPHA PRO 140NG",
     price: 2290,
     cooling: 9210,
+    heating: 10236,
     energy: "A++",
     room: "bedroom",
     image: "/images/tadiran.webp",
@@ -75,6 +77,7 @@ export const products: Product[] = [
     name: "ALPHA PRO 240NG",
     price: 4290,
     cooling: 17740,
+    heating: 17740,
     energy: "A++",
     room: "living",
     image: "/images/tadiran.webp",
@@ -88,6 +91,7 @@ export const products: Product[] = [
     name: "ALPHA PRO 340NG",
     price: 5790,
     cooling: 24000,
+    heating: 25000,
     energy: "A++",
     room: "large",
     image: "/images/tadiran.webp",
@@ -102,6 +106,7 @@ export const products: Product[] = [
     name: "ALPHA PRO 370NG",
     price: 6990,
     cooling: 28000,
+    heating: 28000,
     energy: "A++",
     room: "large",
     image: "/images/tadiran.webp",
@@ -115,6 +120,7 @@ export const products: Product[] = [
     name: "A Inverter 170",
     price: 2190,
     cooling: 12355,
+    heating: 10966,
     energy: "A++",
     room: "bedroom",
     image: "/images/electra.webp",
@@ -130,6 +136,7 @@ export const products: Product[] = [
     name: "A Inverter 240",
     price: 2890,
     cooling: 18356,
+    heating: 16241,
     energy: "A++",
     room: "living",
     image: "/images/electra.webp",

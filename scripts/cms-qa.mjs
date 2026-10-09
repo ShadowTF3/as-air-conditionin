@@ -134,6 +134,7 @@ try {
   await editLocalizedText(quickName, "en", "QA Quick Model EN");
   await quickProduct.locator(".cms-product-quick-grid input[type=number]").nth(0).fill("1490");
   await quickProduct.locator(".cms-product-quick-grid input[type=number]").nth(1).fill("9000");
+  await quickProduct.locator(".cms-product-quick-grid input[type=number]").nth(2).fill("10200");
   await selectByValue(page, quickProduct.locator(".cms-product-quick-image .select-field-trigger"), "/images/tadiran.webp");
   assert.equal(await quickProduct.locator(".cms-product-quick-section").last().locator("label.cms-field select").count(), 0, "A room category should not show a second, duplicate room-size selector.");
   const quickSpecRepeater = quickProduct.locator(".cms-product-quick-specs");
@@ -179,6 +180,7 @@ try {
   assert.equal(addedCmsProducts[0].nameLocalized.he, "QA Quick Hebrew", "Quick product addition should save the Hebrew model name.");
   assert.equal(addedCmsProducts[0].nameLocalized.ar, "QA Quick Model AR", "Quick product addition should save the Arabic model name.");
   assert.equal(addedCmsProducts[0].nameLocalized.en, "QA Quick Model EN", "Quick product addition should save the English model name.");
+  assert.equal(addedCmsProducts[0].heating, 10200, "Quick product addition should save heating capacity.");
   assert.equal(addedCmsProducts[0].specs.length, 2, "Quick product addition should save all pasted specification rows.");
   assert.equal(addedCmsProducts[0].specs[0][0], "QA specification HE", "The active-language specification label should be saved.");
   assert.equal(addedCmsProducts[0].specs[0][1], "QA specification AR", "Editing the Arabic tab should save a separate translation.");
@@ -187,6 +189,29 @@ try {
   assert.equal(addedCmsProducts[0].features.length, 2, "Quick product addition should save all pasted feature rows.");
   assert.ok(addedCmsProducts[0].gallery.includes("/images/electra.webp"), "Quick product addition should save gallery images.");
   assert.equal(addedCmsProducts[0].seoTitle.en, "QA product SEO title", "Quick product addition should save SEO fields.");
+  await page.goto(new URL("/products", baseUrl).href);
+  const heatingCard = page.locator(".product-card").filter({ has: page.locator(`a[href="/products/${addedCmsProducts[0].id}"]`) });
+  await heatingCard.locator(".product-heating svg.lucide-flame").waitFor();
+  await page.goto(new URL(`/products/${addedCmsProducts[0].id}`, baseUrl).href);
+  const heatingHighlight = page.locator(".detail-highlights .detail-heating");
+  await heatingHighlight.waitFor();
+  assert.match(await heatingHighlight.innerText(), /10,200/, "The product details page should display heating BTU capacity.");
+  assert.equal(await heatingHighlight.locator("svg.lucide-flame").count(), 1, "Heating capacity should use a flame icon on the product details page.");
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const detailLayout = await page.evaluate(() => {
+      const highlights = document.querySelector(".detail-highlights");
+      return highlights ? { width: highlights.clientWidth, scrollWidth: highlights.scrollWidth } : null;
+    });
+    assert.ok(detailLayout && detailLayout.scrollWidth <= detailLayout.width + 1, `Heating highlights should fit at ${width}px.`);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(new URL("/admin", baseUrl).href);
+  await page.locator(".admin-stat-grid").waitFor();
+  await page.locator(".admin-sidebar > button").nth(3).click();
+  await page.locator(".cms-root").waitFor();
+  await page.locator(".cms-tabs button").nth(2).click();
+  await page.locator(".cms-subtabs button").nth(0).click();
   const duplicateProductCard = page.locator(".cms-list > .cms-entity").nth(beforeAdds.products.length + 1);
   if (!(await duplicateProductCard.evaluate((element) => element.open))) await duplicateProductCard.locator(":scope > .cms-entity-title").click();
   const duplicateAdvanced = duplicateProductCard.locator('[data-cms-product-section="advanced"]');

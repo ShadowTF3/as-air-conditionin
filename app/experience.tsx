@@ -4,6 +4,7 @@ import Link from "./site-link";
 import { SelectField } from "./select-field";
 import {
   Snowflake,
+  Flame,
   Leaf,
   Wrench,
   Wind,
@@ -70,6 +71,10 @@ export function ProductCard({
             <Snowflake size={14} />
             <bdi>{p.cooling.toLocaleString("en-US")} BTU</bdi>
           </span>
+          {p.heating ? <span className="product-heating" aria-label={t("תפוקת חימום", "قدرة التدفئة", "Heating capacity")}>
+            <Flame size={14} />
+            <bdi>{p.heating.toLocaleString("en-US")} BTU</bdi>
+          </span> : null}
           <span>
             <Leaf size={14} />
             <bdi>{p.energy}</bdi>
@@ -528,6 +533,10 @@ export function Catalog({ t }: Props) {
                   (p: ManagedProduct) => `${p.cooling.toLocaleString("en-US")} BTU/h`,
                 ],
                 [
+                  t("תפוקת חימום", "قدرة التدفئة", "Heating capacity"),
+                  (p: ManagedProduct) => p.heating ? `${p.heating.toLocaleString("en-US")} BTU/h` : t("לא צוין", "غير مذكورة", "Not listed"),
+                ],
+                [
                   t("דירוג אנרגטי", "تصنيف الطاقة", "Energy rating"),
                   (p: ManagedProduct) => p.energy,
                 ],
@@ -698,6 +707,11 @@ export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
                 <strong dir="ltr">{p.cooling.toLocaleString("en-US")}</strong>
                 <small>BTU/h</small>
               </div>
+              {p.heating ? <div className="detail-heating">
+                <Flame />
+                <strong dir="ltr">{p.heating.toLocaleString("en-US")}</strong>
+                <small>{t("תפוקת חימום · BTU/h", "قدرة التدفئة · BTU/h", "Heating capacity · BTU/h")}</small>
+              </div> : null}
               <div>
                 <Leaf />
                 <strong dir="ltr">{p.energy}</strong>
@@ -828,6 +842,10 @@ export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
                     t("תפוקת קירור", "قدرة التبريد", "Cooling capacity"),
                     `${p.cooling.toLocaleString("en-US")} BTU/h`,
                   ],
+                  ...(p.heating ? [[
+                    t("תפוקת חימום", "قدرة التدفئة", "Heating capacity"),
+                    `${p.heating.toLocaleString("en-US")} BTU/h`,
+                  ]] : []),
                   [
                     t(
                       "דירוג אנרגטי בקירור",
@@ -837,7 +855,7 @@ export function ProductDetail({ t, slug }: { t: Translate; slug?: string }) {
                     p.energy,
                   ],
                   [t("טכנולוגיה", "التقنية", "Technology"), "Inverter"],
-                  ...p.specs.map(([he, ar, en, v]) => [t(he, ar, en), v]),
+                  ...p.specs.filter(([he, ar, en]) => !/heating capacity|חימום|التدفئة/i.test(`${he} ${ar} ${en}`)).map(([he, ar, en, v]) => [t(he, ar, en), v]),
                 ].map(([key, value]) => (
                   <div key={key}>
                     <dt>{key}</dt>

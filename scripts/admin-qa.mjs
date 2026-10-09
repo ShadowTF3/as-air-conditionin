@@ -76,7 +76,8 @@ try {
   await editor.locator(".admin-form-grid input").nth(1).fill("QA Inverter 180");
   await editor.locator(".admin-form-grid input[type=number]").nth(0).fill("1490");
   await editor.locator(".admin-form-grid input[type=number]").nth(1).fill("9000");
-  await editor.locator(".admin-form-grid input").nth(4).fill("A++");
+  await editor.locator(".admin-form-grid input[type=number]").nth(2).fill("10600");
+  await editor.locator(".admin-form-grid input").nth(5).fill("A++");
   await selectByValue(page, editor.locator(".admin-form-grid .select-field-trigger"), "large");
   const createResponse = page.waitForResponse((response) =>
     response.url().includes("/api/admin/content") && response.request().method() === "PUT",
@@ -92,6 +93,7 @@ try {
   assert.equal(addedProduct.nameLocalized.ar, "QA Inverter 180", "Missing Arabic model text should receive a fallback.");
   assert.equal(addedProduct.nameLocalized.en, "QA Inverter 180", "The entered English model name should be preserved.");
   assert.equal(addedProduct.room, "large", "The selected room type should be saved.");
+  assert.equal(addedProduct.heating, 10600, "Heating capacity should persist when adding a model from the product catalog.");
   assert.equal(afterCreate.brands.length, brandCountBeforeCreate + 1, "Typing a new brand should create one brand record only when the model is saved.");
   assert.equal(addedProduct.brandId, "qa-cooling", "The saved model should use the stable ID generated from its brand name.");
   assert.ok(afterCreate.brands.every((brand) => /^[a-z0-9-]{2,70}$/.test(brand.id)), "Saving a model must not leave invalid brand IDs from intermediate keystrokes.");

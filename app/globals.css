@@ -922,6 +922,10 @@ footer {
 .product-specs svg {
   color: var(--blue);
 }
+.product-specs .product-heating svg,
+.detail-highlights .detail-heating svg {
+  color: #df8538;
+}
 .product-info .room-label {
   margin-block: 12px 9px;
   font-size: 13px;
@@ -1575,8 +1579,9 @@ footer {
   margin-bottom: 20px;
 }
 .detail-highlights {
-  display: flex;
-  gap: 25px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 115px), 1fr));
+  gap: 16px;
   border-block: 1px solid var(--line);
   padding-block: 18px;
   margin-block: 24px;
@@ -3169,6 +3174,8 @@ html[lang="en"] .admin-root { font-family: Manrope, Arial, sans-serif; }
 .admin-form-grid > label, .admin-auth-form > label { display: grid; gap: 6px; color: #546d7d; font-size: 11px; font-weight: 800; }
 .admin-root input:not([type="checkbox"]), .admin-root .select-field-trigger:not(.admin-language .select-field-trigger) { width: 100%; min-width: 0; height: 41px; padding: 0 11px; color: #19394f; background: #fff; border: 1px solid #dce5ea; border-radius: 8px; outline: 0; font-size: 13px; transition: border-color .16s ease, box-shadow .16s ease; }
 .admin-root input:focus, .admin-root .select-field-trigger:focus-visible { border-color: #5e9cbe; box-shadow: 0 0 0 3px #dceff8; }
+.admin-product-capacity > span { display: flex; align-items: center; gap: 6px; }
+.admin-product-capacity > span svg { color: #df8538; }
 .admin-toggle-row { display: flex; align-items: center; gap: 10px; margin: 0 20px 17px; padding: 12px; border: 1px solid #e4ecef; border-radius: 9px; background: #fbfcfd; }
 .admin-toggle-row input, .admin-check-row input { width: 17px; height: 17px; accent-color: #1973a8; }
 .admin-toggle-row span, .admin-toggle-row b, .admin-toggle-row small { display: block; }
@@ -3221,6 +3228,8 @@ html[lang="en"] .admin-root { font-family: Manrope, Arial, sans-serif; }
 .cms-card-body { display: grid; gap: 15px; padding: 18px 20px 20px; }
 .cms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; align-items: end; }
 .cms-field { display: grid; gap: 6px; min-width: 0; color: #536d7d; font-size: 11px; font-weight: 800; }
+.cms-field-with-icon > span { display: flex; align-items: center; gap: 6px; }
+.cms-field-with-icon > span svg { color: #df8538; }
 .cms-field textarea { width: 100%; min-height: 82px; padding: 10px 11px; border: 1px solid #dce5ea; border-radius: 8px; color: #19394f; background: #fff; font: inherit; font-size: 13px; resize: vertical; }
 .cms-field textarea:focus { border-color: #5e9cbe; outline: 0; box-shadow: 0 0 0 3px #dceff8; }
 .cms-localized { min-width: 0; padding: 13px; margin: 0; border: 1px solid #e5ebef; border-radius: 10px; }

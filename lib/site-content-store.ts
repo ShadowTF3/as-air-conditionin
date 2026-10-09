@@ -85,6 +85,9 @@ function migrateSiteContent(raw: unknown): SiteContent {
     const brand = String(product.brand ?? base.brand);
     const room = product.room === "living" || product.room === "large" ? product.room : "bedroom";
     const categoryId = typeof product.categoryId === "string" ? product.categoryId : room;
+    const specs = Array.isArray(product.specs) ? product.specs : base.specs;
+    const heatingSpec = specs.find((spec) => Array.isArray(spec) && /heating/i.test(String(spec[2])));
+    const heatingFromSpecs = heatingSpec ? Number(String(heatingSpec[3]).replace(/[^\d.]/g, "")) : undefined;
     return {
       ...base,
       ...product,
@@ -97,10 +100,15 @@ function migrateSiteContent(raw: unknown): SiteContent {
       brandId: typeof product.brandId === "string" ? product.brandId : slugFromName(brand),
       categoryId,
       room,
+      heating: typeof product.heating === "number" && Number.isFinite(product.heating)
+        ? product.heating
+        : Number.isFinite(heatingFromSpecs) && heatingFromSpecs! > 0
+          ? heatingFromSpecs
+          : productsById.has(id) ? base.heating : undefined,
       image: typeof product.image === "string" ? product.image : base.image,
       socialImage: typeof product.socialImage === "string" ? product.socialImage : (typeof product.image === "string" ? product.image : base.image),
       gallery: Array.isArray(product.gallery) ? product.gallery : [],
-      specs: Array.isArray(product.specs) ? product.specs : base.specs,
+      specs,
       features: Array.isArray(product.features) ? product.features : base.features,
       available: typeof product.available === "boolean" ? product.available : true,
       visible: typeof product.visible === "boolean" ? product.visible : true,

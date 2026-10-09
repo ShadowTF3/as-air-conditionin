@@ -10,6 +10,7 @@ import {
   ChevronDown,
   CircleAlert,
   FileText,
+  Flame,
   ImagePlus,
   LayoutDashboard,
   LogOut,
@@ -38,7 +39,7 @@ const labels: Record<Language, Record<string, string>> = {
     setupSecret: "יש להגדיר סוד אקראי באורך 32 תווים לפחות. אל תשמרו אותו בקוד האתר.",
     catalogTitle: "קטלוג המוצרים", catalogText: "שנו מחיר, מפרט, תמונה וזמינות. השינויים נשמרים באתר מיד.",
     addProduct: "הוספת דגם", chooseModel: "בחרו דגם לעריכה", brand: "מותג", model: "שם הדגם", price: "מחיר (₪)",
-    btu: "תפוקת קירור (BTU)", energy: "דירוג אנרגטי", room: "סוג החלל", bedroom: "חדר שינה", living: "חלל משפחתי", large: "חלל גדול",
+    btu: "תפוקת קירור (BTU)", heating: "תפוקת חימום (BTU)", energy: "דירוג אנרגטי", room: "סוג החלל", bedroom: "חדר שינה", living: "חלל משפחתי", large: "חלל גדול",
     image: "תמונת המוצר", upload: "העלאת תמונה", availableToggle: "זמין לפנייה באתר", saveProduct: "שמירת הדגם", remove: "הסרת דגם",
     companyTitle: "פרטי העסק והאתר", companyText: "המספרים והפרטים שמופיעים באתר נשמרים כאן, בנפרד מקוד האתר.",
     displayPhone: "מספר טלפון להצגה", phoneIntl: "טלפון בפורמט בינלאומי", whatsappIntl: "מספר WhatsApp בינלאומי",
@@ -59,7 +60,7 @@ const labels: Record<Language, Record<string, string>> = {
     setupSecret: "استخدم سرًا عشوائيًا بطول 32 حرفًا على الأقل، ولا تضعه في ملفات الموقع.",
     catalogTitle: "كتالوج المنتجات", catalogText: "عدّل السعر والمواصفات والصورة والتوفر. تُحفظ التغييرات مباشرة على الموقع.",
     addProduct: "إضافة موديل", chooseModel: "اختر موديلًا للتعديل", brand: "العلامة التجارية", model: "اسم الموديل", price: "السعر (₪)",
-    btu: "قدرة التبريد (BTU)", energy: "كفاءة الطاقة", room: "نوع المساحة", bedroom: "غرفة نوم", living: "مساحة عائلية", large: "مساحة كبيرة",
+    btu: "قدرة التبريد (BTU)", heating: "قدرة التدفئة (BTU)", energy: "كفاءة الطاقة", room: "نوع المساحة", bedroom: "غرفة نوم", living: "مساحة عائلية", large: "مساحة كبيرة",
     image: "صورة المنتج", upload: "رفع صورة", availableToggle: "متاح للاستفسار على الموقع", saveProduct: "حفظ الموديل", remove: "حذف الموديل",
     companyTitle: "بيانات الشركة والموقع", companyText: "تُحفظ أرقام الاتصال والتفاصيل الظاهرة بالموقع هنا، بشكل مستقل عن كود الموقع.",
     displayPhone: "رقم الهاتف للعرض", phoneIntl: "الهاتف بالصيغة الدولية", whatsappIntl: "رقم واتساب بالصيغة الدولية",
@@ -80,7 +81,7 @@ const labels: Record<Language, Record<string, string>> = {
     setupSecret: "Use a random secret at least 32 characters long. Keep it out of the website code.",
     catalogTitle: "Product catalog", catalogText: "Update prices, specifications, images and availability. Changes are saved directly to the site.",
     addProduct: "Add a model", chooseModel: "Choose a model to edit", brand: "Brand", model: "Model name", price: "Price (₪)",
-    btu: "Cooling capacity (BTU)", energy: "Energy rating", room: "Room type", bedroom: "Bedroom", living: "Living space", large: "Large space",
+    btu: "Cooling capacity (BTU)", heating: "Heating capacity (BTU)", energy: "Energy rating", room: "Room type", bedroom: "Bedroom", living: "Living space", large: "Large space",
     image: "Product image", upload: "Upload image", availableToggle: "Available for inquiries on the site", saveProduct: "Save model", remove: "Remove model",
     companyTitle: "Business and site details", companyText: "Contact details shown on the site are saved here, separately from its code.",
     displayPhone: "Display phone number", phoneIntl: "Phone in international format", whatsappIntl: "WhatsApp in international format",
@@ -109,6 +110,7 @@ function emptyProduct(): ManagedProduct {
     nameLocalized: { he: "", ar: "", en: "" },
     price: 0,
     cooling: 0,
+    heating: undefined,
     energy: "A++",
     room: "bedroom",
     image: "/images/tadiran.webp",
@@ -506,6 +508,7 @@ export default function AdminPage() {
                       <label>{c("model")}<input value={product.nameLocalized[language] || product.name} onChange={(event) => { const name = event.target.value; setProduct({ name, nameLocalized: { ...product.nameLocalized, [language]: name } }); }} /></label>
                       <label>{c("price")}<input type="number" min="0" step="1" value={product.price} onChange={(event) => setProduct({ price: Number(event.target.value) })} /></label>
                       <label>{c("btu")}<input type="number" min="0" step="1" value={product.cooling} onChange={(event) => setProduct({ cooling: Number(event.target.value) })} /></label>
+                      <label className="admin-product-capacity"><span><Flame size={14} aria-hidden="true" />{c("heating")}</span><input type="number" min="0" step="1" value={product.heating ?? ""} onChange={(event) => setProduct({ heating: event.target.value.trim() ? Number(event.target.value) : undefined })} /></label>
                       <label>{c("energy")}<input value={product.energy} onChange={(event) => setProduct({ energy: event.target.value })} /></label>
                       <label>{c("room")}<SelectField value={product.room} onChange={(event) => setProduct({ room: event.target.value as ManagedProduct["room"], categoryId: event.target.value })}><option value="bedroom">{c("bedroom")}</option><option value="living">{c("living")}</option><option value="large">{c("large")}</option></SelectField></label>
                     </div>
