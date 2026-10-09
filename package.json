@@ -16,6 +16,7 @@
     "test:admin": "node scripts/admin-qa.mjs",
     "test:cms": "node scripts/cms-qa.mjs",
     "test:storage": "node scripts/storage-qa.mjs",
+    "test:docker": "node scripts/docker-qa.mjs",
     "content:sync": "node scripts/generate-copy-registry.mjs",
     "supabase:migrate-local": "node --env-file-if-exists=.env.local scripts/migrate-site-data-to-supabase.mjs",
     "start": "node --env-file-if-exists=.env.local dist/standalone/server.js",
