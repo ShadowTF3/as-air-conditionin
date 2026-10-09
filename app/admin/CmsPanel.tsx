@@ -20,10 +20,17 @@ type CmsTab = "home" | "copy" | "catalog" | "services" | "offers" | "about" | "f
 type MediaAsset = { image: string; name: string; deletable: boolean; used: boolean };
 type QuickProductDraft = Omit<ManagedProduct, "price" | "cooling"> & { price: string; cooling: string };
 const localeNames: Record<Lang, string> = { he: "עברית", ar: "العربية", en: "English" };
+const languageOrder = ["he", "ar", "en"] as const;
 const localizedFieldUi: Record<Lang, { copyToAll: string; copyTitle: string }> = {
   he: { copyToAll: "העתקה לכל השפות", copyTitle: "העתקת אותו טקסט לעברית, ערבית ואנגלית" },
   ar: { copyToAll: "نسخ إلى اللغات الثلاث", copyTitle: "نسخ النص نفسه إلى العبرية والعربية والإنجليزية" },
   en: { copyToAll: "Copy to all languages", copyTitle: "Copy this same text to Hebrew, Arabic and English" },
+};
+
+const productRowsUi: Record<Lang, { copyLanguage: string; pasteRows: string; pasteSpecHint: string; pasteFeatureHint: string; pasteSpecPlaceholder: string; pasteFeaturePlaceholder: string; addPasted: string }> = {
+  he: { copyLanguage: "העתקת השפה הנוכחית לכל השפות", pasteRows: "הדבקת כמה שורות יחד", pasteSpecHint: "שורה אחת לכל מפרט, במבנה: שם המפרט | ערך. אפשר להדביק רשימה מספק.", pasteFeatureHint: "כתבו או הדביקו תכונה אחת בכל שורה.", pasteSpecPlaceholder: "הספק | 230 V / 50 Hz\nקוטר צנרת | 3/8 - 1/4", pasteFeaturePlaceholder: "טכנולוגיית אינוורטר\nפעולה שקטה", addPasted: "הוספת השורות" },
+  ar: { copyLanguage: "نسخ اللغة الحالية إلى اللغات الثلاث", pasteRows: "لصق عدة أسطر دفعة واحدة", pasteSpecHint: "اكتب مواصفة واحدة في كل سطر بهذا الشكل: اسم المواصفة | القيمة. يمكنك لصق قائمة المورد.", pasteFeatureHint: "اكتب أو الصق ميزة واحدة في كل سطر.", pasteSpecPlaceholder: "مصدر الطاقة | 230 V / 50 Hz\nقطر الأنابيب | 3/8 - 1/4", pasteFeaturePlaceholder: "تقنية الإنفرتر\nتشغيل هادئ", addPasted: "إضافة الأسطر" },
+  en: { copyLanguage: "Copy this language to all three", pasteRows: "Paste multiple rows", pasteSpecHint: "Enter one specification per line as: Name | value. You can paste a supplier list.", pasteFeatureHint: "Enter or paste one feature on each line.", pasteSpecPlaceholder: "Power supply | 230 V / 50 Hz\nPipe diameter | 3/8 - 1/4", pasteFeaturePlaceholder: "Inverter technology\nQuiet operation", addPasted: "Add rows" },
 };
 
 const quickProductUi: Record<Lang, { title: string; hint: string; add: string; cancel: string; copy: string; translations: string; content: string; specsFeatures: string; mediaSeo: string; settings: string; more: string; addSpec: string; addFeature: string; copied: string; required: string; nameHint: string }> = {
@@ -57,6 +64,64 @@ function LocalizedFields({ label, value, onChange, multiline = false, language }
   const text = value?.[activeLanguage] ?? "";
   const copyToAll = localizedFieldUi[language];
   return <fieldset className="cms-localized"><legend>{label}</legend><div className="cms-localized-toolbar"><div className="cms-language-tabs" role="group" aria-label={label}>{(["he", "ar", "en"] as const).map((lang) => <button key={lang} type="button" className="cms-language-tab" data-language={lang} aria-pressed={activeLanguage === lang} onClick={() => setActiveLanguage(lang)}>{localeNames[lang]}</button>)}</div><button type="button" className="cms-copy-all-languages" title={copyToAll.copyTitle} aria-label={copyToAll.copyTitle} onClick={() => onChange({ he: text, ar: text, en: text })}><Copy size={13}/><span>{copyToAll.copyToAll}</span></button></div><div className="cms-localized-editor"><Field label={localeNames[activeLanguage]} value={text} dir={activeLanguage === "en" ? "ltr" : "rtl"} multiline={multiline} onChange={(nextText) => onChange({ ...value, [activeLanguage]: nextText })} /></div></fieldset>;
+}
+
+function ProductRowsEditor({ kind, rows, language, labels, onChange }: { kind: "specs" | "features"; rows: string[][]; language: Lang; labels: Record<string, string>; onChange: (rows: string[][]) => void }) {
+  const [activeLanguage, setActiveLanguage] = useState<Lang>(language);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkError, setBulkError] = useState("");
+  const activeIndex = languageOrder.indexOf(activeLanguage);
+  const rowUi = productRowsUi[language];
+  const updateCell = (rowIndex: number, column: number, text: string) => onChange(rows.map((row, index) => index === rowIndex ? row.map((cell, cellIndex) => cellIndex === column ? text : cell) : row));
+  const hasActiveLanguageText = rows.some((row) => !!row[activeIndex]?.trim());
+  const copyLanguageToAll = () => onChange(rows.map((row) => row.map((cell, column) => column < 3 && row[activeIndex]?.trim() ? row[activeIndex] : cell)));
+  const addPastedRows = () => {
+    const parsed = bulkText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
+      if (kind === "features") {
+        const row = ["", "", ""];
+        row[activeIndex] = line;
+        return [row];
+      }
+      const separator = line.indexOf("|");
+      if (separator < 1 || !line.slice(separator + 1).trim()) return [];
+      const row = ["", "", "", ""];
+      row[activeIndex] = line.slice(0, separator).trim();
+      row[3] = line.slice(separator + 1).trim();
+      return [row];
+    });
+    if (!parsed.length) {
+      setBulkError(kind === "specs" ? rowUi.pasteSpecHint : rowUi.pasteFeatureHint);
+      return;
+    }
+    onChange([...rows, ...parsed]);
+    setBulkText("");
+    setBulkError("");
+  };
+  const title = kind === "specs" ? labels.specifications : labels.features;
+  return <div className={`cms-product-row-editor cms-product-row-editor-${kind}`}>
+    <div className="cms-product-row-toolbar">
+      <div className="cms-language-tabs" role="group" aria-label={`${title} language`}>
+        {(["he", "ar", "en"] as const).map((lang) => <button key={lang} type="button" className="cms-language-tab" data-language={lang} aria-pressed={activeLanguage === lang} onClick={() => setActiveLanguage(lang)}>{localeNames[lang]}</button>)}
+      </div>
+      <button type="button" className="cms-copy-all-languages" onClick={copyLanguageToAll} disabled={!hasActiveLanguageText} title={localizedFieldUi[language].copyTitle}><Copy size={13}/><span>{rowUi.copyLanguage}</span></button>
+    </div>
+    <p className="cms-product-row-hint">{language === "he" ? `העורך מציג כרגע ${localeNames[activeLanguage]}. ניתן להחליף שפה לכל הרשימה.` : language === "ar" ? `التحرير الآن باللغة ${localeNames[activeLanguage]}. يمكن تبديل لغة القائمة كلها من هنا.` : `Editing ${localeNames[activeLanguage]}. Switch the language for the entire list here.`}</p>
+    <div className="cms-product-row-list">
+      {rows.map((row, index) => <div className="cms-product-data-row" key={`${kind}-${index}`}>
+        <Field label={`${title} ${index + 1}`} value={row[activeIndex] ?? ""} dir={activeLanguage === "en" ? "ltr" : "rtl"} onChange={(text) => updateCell(index, activeIndex, text)} />
+        {kind === "specs" && <Field label={labels.value} value={row[3] ?? ""} dir="auto" onChange={(text) => updateCell(index, 3, text)} />}
+        <button type="button" className="cms-delete" aria-label={labels.delete} title={labels.delete} onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}><Trash2 size={14}/></button>
+      </div>)}
+    </div>
+    <button type="button" className="cms-add-row" onClick={() => onChange([...rows, kind === "specs" ? ["", "", "", ""] : ["", "", ""]])}><Plus size={14}/>{labels.addRow}</button>
+    <details className="cms-product-bulk-entry">
+      <summary><span>{rowUi.pasteRows}</span><ChevronDown size={14}/></summary>
+      <p>{kind === "specs" ? rowUi.pasteSpecHint : rowUi.pasteFeatureHint}</p>
+      <textarea aria-label={rowUi.pasteRows} dir={activeLanguage === "en" ? "ltr" : "rtl"} placeholder={kind === "specs" ? rowUi.pasteSpecPlaceholder : rowUi.pasteFeaturePlaceholder} value={bulkText} onChange={(event) => { setBulkText(event.target.value); setBulkError(""); }} />
+      {bulkError && <span className="cms-product-bulk-error" role="status">{bulkError}</span>}
+      <button type="button" className="cms-add-row" onClick={addPastedRows}><Plus size={14}/>{rowUi.addPasted}</button>
+    </details>
+  </div>;
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -156,24 +221,6 @@ export function CmsPanel({ value, onChange, onSave, busy, language }: { value: S
       featured: source?.featured ?? false,
     };
   };
-  const updateQuickSpecTranslations = (row: number, text: LocalizedText) => setQuickDraft((current) => {
-    if (!current) return current;
-    const specs = [...current.specs];
-    specs[row] = [text.he, text.ar, text.en, specs[row][3]];
-    return { ...current, specs };
-  });
-  const updateQuickSpecValue = (row: number, text: string) => setQuickDraft((current) => {
-    if (!current) return current;
-    const specs = [...current.specs];
-    specs[row] = [...specs[row].slice(0, 3), text] as [string, string, string, string];
-    return { ...current, specs };
-  });
-  const updateQuickFeatureTranslations = (row: number, text: LocalizedText) => setQuickDraft((current) => {
-    if (!current) return current;
-    const features = [...current.features];
-    features[row] = [text.he, text.ar, text.en];
-    return { ...current, features };
-  });
   const addProduct = () => { setQuickDraft(makeQuickProductDraft()); setNotice(""); setQuickSuccess(""); };
   const duplicateProduct = (product: ManagedProduct) => { setQuickDraft(makeQuickProductDraft(product)); setNotice(""); setQuickSuccess(""); };
   const commitQuickProduct = () => {
@@ -265,8 +312,8 @@ export function CmsPanel({ value, onChange, onSave, busy, language }: { value: S
           </section>
           <section className="cms-product-quick-section">
             <h4>{quickProductUi[language].specsFeatures}</h4>
-            <div className="cms-repeater cms-product-quick-specs"><h5>{labels.specifications}</h5>{quickDraft.specs.map((spec, row) => <div className="cms-product-quick-row" key={`quick-spec-${row}`}><LocalizedFields language={language} label={`${labels.specifications} ${row + 1}`} value={{ he: spec[0], ar: spec[1], en: spec[2] }} onChange={(text) => updateQuickSpecTranslations(row, text)} /><Field label={labels.value} value={spec[3]} onChange={(text) => updateQuickSpecValue(row, text)} />{deleteButton(() => setQuickDraft((current) => current ? { ...current, specs: current.specs.filter((_, index) => index !== row) } : current))}</div>)}<button type="button" className="cms-add-row" onClick={() => setQuickDraft((current) => current ? { ...current, specs: [...current.specs, ["", "", "", ""]] } : current)}><Plus size={14} />{quickProductUi[language].addSpec}</button></div>
-            <div className="cms-repeater cms-product-quick-features"><h5>{labels.features}</h5>{quickDraft.features.map((feature, row) => <div className="cms-product-quick-row" key={`quick-feature-${row}`}><LocalizedFields language={language} label={`${labels.features} ${row + 1}`} value={{ he: feature[0], ar: feature[1], en: feature[2] }} onChange={(text) => updateQuickFeatureTranslations(row, text)} />{deleteButton(() => setQuickDraft((current) => current ? { ...current, features: current.features.filter((_, index) => index !== row) } : current))}</div>)}<button type="button" className="cms-add-row" onClick={() => setQuickDraft((current) => current ? { ...current, features: [...current.features, ["", "", ""]] } : current)}><Plus size={14} />{quickProductUi[language].addFeature}</button></div>
+            <div className="cms-repeater cms-product-quick-specs"><h5>{labels.specifications}</h5><ProductRowsEditor kind="specs" rows={quickDraft.specs} language={language} labels={labels} onChange={(specs) => setQuickDraft((current) => current ? { ...current, specs: specs as ManagedProduct["specs"] } : current)} /></div>
+            <div className="cms-repeater cms-product-quick-features"><h5>{labels.features}</h5><ProductRowsEditor kind="features" rows={quickDraft.features} language={language} labels={labels} onChange={(features) => setQuickDraft((current) => current ? { ...current, features: features as ManagedProduct["features"] } : current)} /></div>
           </section>
           <section className="cms-product-quick-section">
             <h4>{quickProductUi[language].mediaSeo}</h4>
@@ -315,8 +362,8 @@ export function CmsPanel({ value, onChange, onSave, busy, language }: { value: S
                 {imageField(productShareLabel, product.socialImage === product.image ? "" : product.socialImage, (socialImage) => updateProduct({ socialImage }))}
                 <LocalizedFields language={language} label={labels.seoTitle} value={product.seoTitle} onChange={(seoTitle) => updateProduct({ seoTitle })} />
                 <LocalizedFields language={language} label={labels.seoDescription} value={product.seoDescription} multiline onChange={(seoDescription) => updateProduct({ seoDescription })} />
-                <div className="cms-repeater cms-product-specs"><h3>{labels.specifications}</h3>{product.specs.map((spec, row) => <div className="cms-grid" key={`${product.id}-spec-${row}`}>{spec.slice(0, 3).map((text, column) => <Field key={column} label={[labels.he, labels.ar, labels.en][column]} value={text} onChange={(nextText) => { const specs = [...product.specs]; const entry = [...specs[row]] as [string, string, string, string]; entry[column] = nextText; specs[row] = entry; updateProduct({ specs }); }} />)}<Field label={labels.description} value={spec[3]} onChange={(text) => { const specs = [...product.specs]; const entry = [...specs[row]] as [string, string, string, string]; entry[3] = text; specs[row] = entry; updateProduct({ specs }); }} />{deleteButton(() => updateProduct({ specs: product.specs.filter((_, i) => i !== row) }))}</div>)}<button className="cms-add-row" onClick={() => updateProduct({ specs: [...product.specs, ["", "", "", ""]] })}><Plus size={14} />{labels.addRow}</button></div>
-                <div className="cms-repeater cms-product-features"><h3>{labels.features}</h3>{product.features.map((feature, row) => <div className="cms-grid" key={`${product.id}-feature-${row}`}>{feature.map((text, column) => <Field key={column} label={[labels.he, labels.ar, labels.en][column]} value={text} onChange={(nextText) => { const features = [...product.features]; const entry = [...features[row]] as [string, string, string]; entry[column] = nextText; features[row] = entry; updateProduct({ features }); }} />)}{deleteButton(() => updateProduct({ features: product.features.filter((_, i) => i !== row) }))}</div>)}<button className="cms-add-row" onClick={() => updateProduct({ features: [...product.features, ["", "", ""]] })}><Plus size={14} />{labels.addRow}</button></div>
+                <div className="cms-repeater cms-product-specs"><h3>{labels.specifications}</h3><ProductRowsEditor kind="specs" rows={product.specs} language={language} labels={labels} onChange={(specs) => updateProduct({ specs: specs as ManagedProduct["specs"] })} /></div>
+                <div className="cms-repeater cms-product-features"><h3>{labels.features}</h3><ProductRowsEditor kind="features" rows={product.features} language={language} labels={labels} onChange={(features) => updateProduct({ features: features as ManagedProduct["features"] })} /></div>
               </div></details>
             </div>
             <div className="cms-row cms-entity-bottom">{moveButtons(() => setPart("products", reorder(value.products, index, -1)), () => setPart("products", reorder(value.products, index, 1)))}</div>
