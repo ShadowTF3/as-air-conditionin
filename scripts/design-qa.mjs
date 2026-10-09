@@ -42,6 +42,15 @@ for (const lang of ["he", "ar", "en"]) {
       await page.locator("body[data-ready=true]").waitFor();
       await page.locator(`html[lang="${lang}"]`).waitFor();
       await page.evaluate(() => document.fonts.ready);
+      if (route === "/") {
+        const card = await page.locator(".temperature-card").evaluate((el) => {
+          const card = el.getBoundingClientRect();
+          const image = el.parentElement.getBoundingClientRect();
+          return { cardLeft: card.left, cardRight: card.right, imageLeft: image.left, imageRight: image.right };
+        });
+        expect(card.cardLeft).toBeGreaterThanOrEqual(card.imageLeft - 1);
+        expect(card.cardRight).toBeLessThanOrEqual(card.imageRight + 1);
+      }
       if (width === 1440 && route === "/products") {
         const filter = page.locator(".filters .select-field-trigger").first();
         await filter.click();

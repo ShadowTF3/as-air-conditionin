@@ -375,7 +375,7 @@ h1 > span {
 .temperature-card {
   position: absolute;
   bottom: 38px;
-  right: -29px;
+  right: 16px;
   display: flex;
   align-items: center;
   gap: 15px;
@@ -3029,7 +3029,7 @@ html[lang="en"] .brand strong {
 }
 html[lang="en"] .temperature-card {
   right: auto;
-  left: -29px;
+  left: 16px;
 }
 @media (max-width: 640px) {
   html[lang="en"] .temperature-card {
